@@ -1,9 +1,9 @@
 @echo off
 chcp 65001 >nul
-title 构建科吉 AI 助手
+title 构建NanoBuddy
 
 echo ============================================
-echo     科吉 AI 助手 — 构建打包脚本
+echo       NanoBuddy — 构建打包脚本
 echo ============================================
 echo.
 
@@ -57,7 +57,7 @@ powershell -ExecutionPolicy Bypass -File "install_shortcut.ps1"
 echo.
 echo ============================================
 echo     构建完成！
-echo     可执行文件: dist\科吉AI助手.exe
+echo     可执行文件: dist\NanoBuddy.exe
 echo     桌面快捷方式已创建
 echo ============================================
 echo.

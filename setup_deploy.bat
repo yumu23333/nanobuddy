@@ -1,5 +1,5 @@
 @echo off
-title Keji Agent Deploy
+title  NanoBuddy Deploy
 cd /d "%~dp0"
 
 where powershell >nul 2>&1

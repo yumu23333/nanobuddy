@@ -1,0 +1,109 @@
+  <!-- ===== 管理页面（仅 admin） ===== -->
+  <div class="page" id="page-admin">
+    <div class="page-header">
+      <div>
+        <h2>
+          <i class="icon-fa fa-solid fa-user-shield" style="margin-right:6px"></i>系统管理
+        </h2>
+        <p>用户权限与全员对话审计（仅管理员）</p>
+      </div>
+      <button type="button" class="btn btn-sm btn-outline" onclick="loadAdminPage()" title="刷新数据">
+        <i class="icon-fa fa-solid fa-rotate"></i> 刷新
+      </button>
+    </div>
+    <div class="admin-content">
+      <div class="admin-stats" id="adminStats">
+        <div class="stat-card stat-users">
+          <div class="stat-icon"><i class="icon-fa fa-solid fa-users"></i></div>
+          <div class="stat-body"><div class="number" id="adminStatUsers">-</div><div class="label">用户总数</div></div>
+        </div>
+        <div class="stat-card stat-active">
+          <div class="stat-icon"><i class="icon-fa fa-solid fa-user-check"></i></div>
+          <div class="stat-body"><div class="number" id="adminStatActive">-</div><div class="label">已启用</div></div>
+        </div>
+        <div class="stat-card stat-convs">
+          <div class="stat-icon"><i class="icon-fa fa-solid fa-comments"></i></div>
+          <div class="stat-body"><div class="number" id="adminStatConvs">-</div><div class="label">对话记录</div></div>
+        </div>
+      </div>
+
+      <div class="settings-group admin-group">
+        <h3>
+          <i class="icon-fa fa-solid fa-user-gear" style="margin-right:4px"></i> 用户与权限
+        </h3>
+        <div class="admin-create-card">
+          <div class="admin-create-title">
+            <i class="icon-fa fa-solid fa-user-plus"></i> 创建新用户
+          </div>
+          <div class="admin-form-grid">
+            <div class="admin-form-field">
+              <label for="adminNewUsername">用户名</label>
+              <input type="text" id="adminNewUsername" placeholder="至少 2 个字符" autocomplete="off">
+            </div>
+            <div class="admin-form-field">
+              <label for="adminNewPassword">初始密码</label>
+              <input type="password" id="adminNewPassword" placeholder="至少 6 位" autocomplete="new-password">
+            </div>
+            <div class="admin-form-field">
+              <label for="adminNewDisplay">显示名</label>
+              <input type="text" id="adminNewDisplay" placeholder="可选，默认同用户名">
+            </div>
+            <div class="admin-form-field">
+              <label for="adminNewRole">角色</label>
+              <select id="adminNewRole">
+                <option value="member">成员</option>
+                <option value="readonly">只读</option>
+                <option value="admin">管理员</option>
+              </select>
+            </div>
+          </div>
+          <div class="admin-create-actions">
+            <button type="button" class="btn btn-primary" onclick="adminCreateUser()">
+              <i class="icon-fa fa-solid fa-check"></i> 创建用户
+            </button>
+          </div>
+        </div>
+        <div class="admin-list-header">
+          <span>用户列表</span>
+          <span id="adminUserCount" class="admin-list-count"></span>
+        </div>
+        <div id="adminUserList" class="admin-user-cards">
+          <div class="loading"><div class="spinner"></div>加载中...</div>
+        </div>
+      </div>
+
+      <div class="settings-group admin-group">
+        <h3>
+          <i class="icon-fa fa-solid fa-clipboard-list" style="margin-right:4px"></i> 全部对话
+        </h3>
+        <div class="admin-conv-toolbar kb-search-bar">
+          <span class="kb-search-icon"><i class="icon-fa fa-solid fa-filter"></i></span>
+          <select id="adminConvUserFilter" onchange="loadAdminConversations()">
+            <option value="">全部用户</option>
+          </select>
+          <button type="button" class="btn btn-sm btn-outline" onclick="loadAdminConversations()">
+            <i class="icon-fa fa-solid fa-rotate"></i> 刷新列表
+          </button>
+        </div>
+        <div class="admin-conv-layout">
+          <div class="admin-conv-panel">
+            <div class="admin-panel-title">对话列表</div>
+            <div id="adminConvList" class="admin-conv-list">
+              <div class="loading"><div class="spinner"></div>加载中...</div>
+            </div>
+          </div>
+          <div class="admin-conv-panel admin-conv-panel-preview">
+            <div class="admin-panel-title">对话内容</div>
+            <div id="adminConvPreview" class="admin-conv-preview">
+              <div class="admin-preview-scroll">
+                <div class="admin-preview-empty">
+                  <div class="big-icon"><i class="icon-fa fa-solid fa-message"></i></div>
+                  <p>从左侧选择一条对话查看最近消息</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>

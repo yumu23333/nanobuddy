@@ -1,16 +1,17 @@
-# 科吉 Agent (Keji)
+# Nanobuddy
+你的本地 AI 好伙伴！浏览器打开即可对话，支持多账号、团队共享文件夹、管理员后台。适合办公室内网一台服务器、多人通过网页访问。
 
-Windows 上的**本地 / 局域网 AI 助手**：浏览器打开即可对话，支持多账号、团队共享文件夹、管理员后台。适合办公室内网一台服务器、多人通过网页访问。
+**Nanobuddy 是基于 Keji Agent
+（Zuofeng198, MIT 许可）的二次开发项目，其核心 Agent 引擎源自开源项目 nanobot （HKUDS，MIT 许可）。
+ Nanobuddy 在其上增加了 Web 前端、多用户权限、团队文件工作区与企业部署能力。详见 [第三方声明与致谢](THIRD_PARTY_NOTICES.md)。
 
-**Agent 引擎基于开源项目 [nanobot](https://github.com/HKUDS/nanobot)**（HKUDS，MIT 许可）。科吉在其上增加了 Web 前端、多用户权限、团队文件工作区与企业部署能力。详见 [第三方声明与致谢](THIRD_PARTY_NOTICES.md)。
-
-**仓库地址：** https://github.com/Zuofeng198/Keji-agent
+**仓库地址：** https://github.com/yumu23333/nanobuddy
 
 ## 界面预览
 
 启动后浏览器访问 `http://127.0.0.1:8000/` 的效果如下：
 
-![科吉运行界面](image/keji-screenshot.png)
+![Nanobuddy运行界面](image/nanobuddy-screenshot.png)
 
 ---
 
@@ -36,8 +37,8 @@ Windows 上的**本地 / 局域网 AI 助手**：浏览器打开即可对话，�
 ### 第 1 步：下载代码
 
 ```powershell
-git clone https://github.com/Zuofeng198/keji.git
-cd keji
+git clone https://github.com/yumu23333/nanobuddy.git
+cd nanobuddy
 git lfs install
 git lfs pull
 ```
@@ -56,7 +57,7 @@ git lfs pull
 
 ```env
 DEEPSEEK_API_KEY=sk-你的DeepSeek密钥
-KEJI_ADMIN_PASSWORD=你想设置的管理员密码
+NANOBUDDY_ADMIN_PASSWORD=你想设置的管理员密码
 ```
 
 保存后关闭。其他项可暂时留空；启动时若提示某环境变量未设置，多为可选项，补全 `.env` 后重启即可。
@@ -67,7 +68,7 @@ KEJI_ADMIN_PASSWORD=你想设置的管理员密码
 
 | 方式 | 操作 |
 |------|------|
-| **推荐** | 双击 **`launch_keji.bat`** → 自动打开浏览器 |
+| **推荐** | 双击 **`launch_nanobuddy.bat`** → 自动打开浏览器 |
 | 看日志 | 双击 **`run_server.bat`** → 黑窗里运行，停服务按 `Ctrl+C` |
 
 - 本机访问：http://127.0.0.1:8000/
@@ -88,7 +89,7 @@ KEJI_ADMIN_PASSWORD=你想设置的管理员密码
 | 文件 | 用途 |
 |------|------|
 | `setup_deploy.bat` / `一键部署.bat` | 新机安装 Python 虚拟环境与依赖 |
-| `launch_keji.bat` / `启动科吉.bat` | 后台启动服务并打开网页 |
+| `launch_nanobuddy.bat` / `启动助手.bat` | 后台启动服务并打开网页 |
 | `run_server.bat` / `运行服务.bat` | 带黑窗启动（排错时用） |
 | `package_wheels.bat` | 在本机重新打包离线 wheel（换 Python 版本时用） |
 
@@ -122,7 +123,7 @@ KEJI_ADMIN_PASSWORD=你想设置的管理员密码
 ## 停止服务
 
 - 用 `run_server.bat` 启动的：在黑窗按 **Ctrl+C**
-- 用 `launch_keji.bat` 启动的：任务管理器结束 **pythonw.exe**，或 PowerShell：
+- 用 `launch_nanobuddy.bat` 启动的：任务管理器结束 **pythonw.exe**，或 PowerShell：
 
 ```powershell
 Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue |
@@ -143,7 +144,7 @@ A：本仓库自带的离线 wheel 是 **3.12**。若你只有 3.10/3.11，可�
 A：在 `.env` 补 `DEEPSEEK_API_KEY` 等；飞书、OpenAI 不用可忽略。
 
 **Q：双击 `main.py` 闪退？**  
-A：不要双击 py 文件，请用 `launch_keji.bat` 或 `run_server.bat`。
+A：不要双击 py 文件，请用 `launch_nanobuddy.bat` 或 `run_server.bat`。
 
 **Q：pip 安装失败？**  
 A：确认 Python 为 64 位；或在有网环境重新运行 `setup_deploy.bat`。
@@ -168,7 +169,7 @@ FastAPI · **[nanobot](https://github.com/HKUDS/nanobot)**（HKUDS）· SQLite �
 
 ## 许可与第三方组件
 
-- **科吉自有代码**（`core/`、`web/`、`main.py` 及部署脚本等）：[MIT License](LICENSE)
+- **Nanobuddy 自有代码**（`core/`、`web/`、`main.py` 及部署脚本等）：[MIT License](LICENSE)
 - **nanobot 引擎**（`nanobot/`）：[MIT License](nanobot/LICENSE)，上游 [HKUDS/nanobot](https://github.com/HKUDS/nanobot)
 - **其他 bundled 组件与 pip 依赖**：见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
 

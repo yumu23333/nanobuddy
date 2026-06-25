@@ -60,7 +60,7 @@ async def lifespan(app: FastAPI):
         try:
             ad = await get_adapter()
             await ad.start_feishu_bridge()
-            logger.info("科吉 AI 助手启动完成（nanobot 引擎）")
+            logger.info("NanoBuddy启动完成（nanobot 引擎）")
         except Exception as e:
             logger.exception("后台引擎初始化失败: {}", e)
 
@@ -78,7 +78,7 @@ async def lifespan(app: FastAPI):
         pass
 
 
-app = FastAPI(title="科吉 AI 助手", docs_url=None, redoc_url=None, lifespan=lifespan)
+app = FastAPI(title="NanoBuddy", docs_url=None, redoc_url=None, lifespan=lifespan)
 app.add_middleware(APIKeyMiddleware)
 app.include_router(api_router)
 app.include_router(auth_router)
@@ -268,10 +268,10 @@ async def health():
 if __name__ == "__main__":
     import uvicorn
     try:
-        print("🚀 科吉 AI 助手启动中...")
+        print("🚀 NanoBuddy启动中...")
         print("🌐 访问地址: http://127.0.0.1:8000 （局域网请用本机 IP）")
     except UnicodeEncodeError:
-        print("科吉 AI 助手启动中...")
+        print("NanoBuddy启动中...")
         print("访问地址: http://127.0.0.1:8000")
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
     host = os.environ.get("KEJI_HOST", "0.0.0.0")

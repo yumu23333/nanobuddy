@@ -1,0 +1,48 @@
+
+  <!-- ===== 知识库页面 ===== -->
+  <div class="page" id="page-knowledge">
+    <div class="page-header">
+      <div>
+        <h2>
+          <i class="icon-fa fa-solid fa-bookmark" style="margin-right:6px"></i>知识库管理
+        </h2>
+        <p>管理文档索引，构建企业知识库</p>
+      </div>
+    </div>
+    <div class="kb-content">
+      <!-- 统计卡片行 -->
+      <div class="kb-stats" id="kbStats">
+        <div class="stat-card stat-docs"><div class="stat-icon"><i class="icon-fa fa-solid fa-file-lines"></i></div><div class="stat-body"><div class="number">-</div><div class="label">文档总数</div></div></div>
+        <div class="stat-card stat-chunks"><div class="stat-icon"><i class="icon-fa fa-solid fa-puzzle-piece"></i></div><div class="stat-body"><div class="number">-</div><div class="label">文本块数</div></div></div>
+        <div class="stat-card stat-vectors"><div class="stat-icon"><i class="icon-fa fa-solid fa-cubes"></i></div><div class="stat-body"><div class="number">-</div><div class="label">向量数量</div></div></div>
+      </div>
+
+      <!-- 索引面板 -->
+      <div class="kb-index-card">
+        <div class="kb-index-title"><i class="icon-fa fa-solid fa-cloud-arrow-down"></i> 索引新文档</div>
+        <div class="kb-index-row">
+          <input type="text" id="kbPath" placeholder="输入文件或文件夹路径，如 D:\docs\report.pdf" onkeydown="if(event.key==='Enter')indexFromInput()">
+          <button class="btn btn-primary" onclick="indexFromInput()" style="flex-shrink:0"><i class="icon-fa fa-solid fa-cloud-arrow-down"></i> 索引到知识库</button>
+          <button class="btn btn-danger" id="kbCancelBtn" onclick="cancelIndexing()" style="display:none;flex-shrink:0"><i class="icon-fa fa-solid fa-stop"></i> 终止检索</button>
+        </div>
+      </div>
+
+      <!-- 搜索栏 -->
+      <div class="kb-search-bar">
+        <span class="kb-search-icon"><i class="icon-fa fa-solid fa-magnifying-glass"></i></span>
+        <input type="text" id="kbSearch" placeholder="搜索知识库中的文档内容..." onkeydown="if(event.key==='Enter')searchKnowledge()">
+        <button class="btn btn-sm btn-outline" onclick="toggleKbMultiSelect()" id="kbMultiBtn"><i class="icon-fa fa-solid fa-check-square"></i> 多选</button>
+      </div>
+
+      <!-- 文档列表 -->
+      <div class="kb-doc-header">
+        <span>已索引文档</span>
+        <span id="kbDocCount" style="font-size:12px;color:var(--text-secondary)"></span>
+      </div>
+      <div class="kb-toolbar" id="kbToolbar" style="display:none;padding:8px 0;gap:8px">
+        <button class="btn btn-sm btn-outline" onclick="selectAllKbDocs()">全选</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteSelectedKbDocs()"><i class="icon-fa fa-solid fa-trash-can"></i> 删除所选</button>
+      </div>
+      <div class="kb-doc-list" id="kbDocList"><div class="loading"><div class="spinner"></div>加载中...</div></div>
+    </div>
+  </div>

@@ -1,4 +1,4 @@
-"""科吉 CLI 工具调度器 —— 每个工具调用启动独立进程执行
+"""nanobuddy CLI 工具调度器 —— 每个工具调用启动独立进程执行
 
 用法:
     python cli.py <tool_name> <json_args>

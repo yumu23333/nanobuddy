@@ -24,6 +24,11 @@ class LoginRequest(BaseModel):
     password: str = Field(..., min_length=1, max_length=128)
 
 
+class RegisterRequest(BaseModel):
+    username: str = Field(..., min_length=2, max_length=64)
+    password: str = Field(..., min_length=6, max_length=128)
+
+
 @router.post("/login")
 def login(req: LoginRequest, request: Request):
     db = get_db()
@@ -55,6 +60,26 @@ def auth_me(user: CurrentUser = Depends(get_current_user)):
     if not row or not row.get("is_active"):
         raise HTTPException(401, "账号已禁用或不存在")
     return {"user": get_db().user_to_public(row)}
+
+
+@router.post("/register")
+def register(req: RegisterRequest):
+    db = get_db()
+    if db.get_user_by_username(req.username):
+        raise HTTPException(400, "用户名已存在")
+    password_hash = hash_password(req.password)
+    uid = db.create_user(
+        username=req.username,
+        password_hash=password_hash,
+        role="member",
+        display_name=req.username,
+    )
+    try:
+        from core.workspace import ensure_user_dir
+        ensure_user_dir(uid)
+    except Exception:
+        pass
+    return {"message": "注册成功", "user_id": uid}
 
 
 def _client_ip(request: Request) -> str:

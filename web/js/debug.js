@@ -51,25 +51,25 @@ function updateDebugBar() {
 }
 
 var _phaseLabel = {
-  knowledge:       [_dualIcon('📖','fa-book-open')+' 知识库', 'dd-knowledge'],
-  thinking:        [_dualIcon('🤔','fa-brain')+' 思考中', 'dd-thinking'],
-  self_check:      [_dualIcon('🔄','fa-rotate')+' 二次确认', 'dd-thinking'],
-  think_token:     [_dualIcon('💭','fa-comment-dots')+' token', 'dd-thinking'],
-  think_done:      [_dualIcon('✅','fa-circle-check')+' 思考完成', 'dd-thinking'],
-  tool_call:       [_dualIcon('🔧','fa-wrench')+' 调用工具', 'dd-toolcall'],
-  tool_continue:   [_dualIcon('⏳','fa-hourglass-half')+' 自动续传', 'dd-toolcall'],
-  tool_result:     [_dualIcon('📤','fa-cloud-arrow-down')+' 工具返回', 'dd-toolresult'],
-  plan_exec_start: [_dualIcon('⚡','fa-bolt')+' 计划执行', 'dd-thinking'],
-  plan_fallback:   [_dualIcon('🔄','fa-rotate')+' 兜底执行', 'dd-thinking'],
-  plan_step:       [_dualIcon('📋','fa-clock')+' 计划步骤', 'dd-toolcall'],
-  plan_correction: [_dualIcon('🔧','fa-wrench')+' 步骤修正', 'dd-toolcall'],
-  plan_eval:       [_dualIcon('🔍','fa-magnifying-glass')+' 步骤验证', 'dd-thinking'],
-  plan_eval_done:  [_dualIcon('✅','fa-circle-check')+' 验证完成', 'dd-thinking'],
-  plan_answering:  [_dualIcon('🤔','fa-brain')+' 综合分析', 'dd-answer'],
-  answering:       [_dualIcon('🗣','fa-comment')+' 开始回答', 'dd-answer'],
-  answer:          [_dualIcon('💬','fa-comments')+' 回答', 'dd-answer'],
-  error:           [_dualIcon('❌','fa-circle-xmark')+' 错误', 'dd-error'],
-  done:            [_dualIcon('🏁','fa-flag')+' 完成', 'dd-answer']
+  knowledge:       [_dualIcon('','fa-book-open')+' 知识库', 'dd-knowledge'],
+  thinking:        [_dualIcon('','fa-brain')+' 思考中', 'dd-thinking'],
+  self_check:      [_dualIcon('','fa-rotate')+' 二次确认', 'dd-thinking'],
+  think_token:     [_dualIcon('','fa-comment-dots')+' token', 'dd-thinking'],
+  think_done:      [_dualIcon('','fa-circle-check')+' 思考完成', 'dd-thinking'],
+  tool_call:       [_dualIcon('','fa-wrench')+' 调用工具', 'dd-toolcall'],
+  tool_continue:   [_dualIcon('','fa-hourglass-half')+' 自动续传', 'dd-toolcall'],
+  tool_result:     [_dualIcon('','fa-cloud-arrow-down')+' 工具返回', 'dd-toolresult'],
+  plan_exec_start: [_dualIcon('','fa-bolt')+' 计划执行', 'dd-thinking'],
+  plan_fallback:   [_dualIcon('','fa-rotate')+' 兜底执行', 'dd-thinking'],
+  plan_step:       [_dualIcon('','fa-clock')+' 计划步骤', 'dd-toolcall'],
+  plan_correction: [_dualIcon('','fa-wrench')+' 步骤修正', 'dd-toolcall'],
+  plan_eval:       [_dualIcon('','fa-magnifying-glass')+' 步骤验证', 'dd-thinking'],
+  plan_eval_done:  [_dualIcon('','fa-circle-check')+' 验证完成', 'dd-thinking'],
+  plan_answering:  [_dualIcon('','fa-brain')+' 综合分析', 'dd-answer'],
+  answering:       [_dualIcon('','fa-comment')+' 开始回答', 'dd-answer'],
+  answer:          [_dualIcon('','fa-comments')+' 回答', 'dd-answer'],
+  error:           [_dualIcon('','fa-circle-xmark')+' 错误', 'dd-error'],
+  done:            [_dualIcon('','fa-flag')+' 完成', 'dd-answer']
 };
 
 function renderEventTimeline() {
@@ -93,7 +93,7 @@ function renderEventTimeline() {
   var html = '';
   for (var g = 0; g < groups.length; g++) {
     var e = groups[g];
-    var lb = _phaseLabel[e.phase] || [_dualIcon('📎','fa-link')+' '+e.phase, ''];
+    var lb = _phaseLabel[e.phase] || [_dualIcon('','fa-link')+' '+e.phase, ''];
     var d = new Date(e._time);
     var time = d.toLocaleTimeString() + '.' + String(d.getMilliseconds()).padStart(3,'0');
     var countLabel = e.count > 1 ? ' <span style="color:#e8b84b;font-weight:600">×' + e.count + '</span>' : '';
@@ -146,7 +146,7 @@ function renderToolDetails() {
     var time = new Date(p.time).toLocaleTimeString();
     html += '<div class="dd-entry dd-toolcall">';
     html += '<span class="dd-time">'+time+'</span> ';
-    html += '<span class="dd-phase">🔧 '+escHtml(p.tools.join(', '))+'</span>';
+    html += '<span class="dd-phase">' + '<i class="icon-fa fa-solid fa-wrench"></i> ' +escHtml(p.tools.join(', '))+'</span>';
     if (p.result) {
       html += '<div class="dd-detail dd-result" style="max-height:none">';
       html += escHtml((p.result.result||'').substring(0, 800));

@@ -32,7 +32,7 @@ async function execCommand(cmd, args) {
         currentConvId = '';
         sessionId = '';
         document.getElementById('chatMessages').innerHTML =
-          '<div class="empty-state"><div class="big-icon">' + _dualIcon('👋', 'fa-hand-wave') + '</div><h3>你好！我是科吉</h3><p>对话已删除，可以开始新话题。</p></div>';
+          '<div class="empty-state"><div class="big-icon">' + _dualIcon('', 'fa-hand-wave') + '</div><h3>你好！我是 Nanobuddy</h3><p>对话已删除，可以开始新话题。</p></div>';
         document.getElementById('convTitle').textContent = '新对话';
       });
       return true;
@@ -425,7 +425,7 @@ async function sendPlanExecute(q, files) {
               // 保留思考面板，标记为已完成
               if (thinkingPanel) {
                 var hdr = thinkingPanel.querySelector('.tp-header span');
-                if (hdr) hdr.innerHTML = _dualIcon('✅','fa-circle-check')+' 计划已就绪 <span class="tp-timer plan-done">'+(planTimerEl?planTimerEl.textContent:'00:00')+'</span>';
+                if (hdr) hdr.innerHTML = _dualIcon('','fa-circle-check')+' 计划已就绪 <span class="tp-timer plan-done">'+(planTimerEl?planTimerEl.textContent:'00:00')+'</span>';
                 if (thinkingBody) { thinkingBody.style.opacity = '0.5'; }
               }
               if (thinkingTimer) { clearInterval(thinkingTimer); thinkingTimer = null; }
@@ -451,8 +451,8 @@ function showPlanCard(plan) {
   h += '</div>';
   var card = document.createElement('div');
   card.className = 'plan-card'; card.id = 'planCard';
-  card.innerHTML = '<div class="plan-title">'+_dualIcon('📋','fa-clock')+' ' + escHtml(plan.title||'执行计划') + '</div>' + h +
-    '<div class="plan-actions"><button class="btn-primary" onclick="approvePlan()">✓ 批准执行</button><button class="btn-outline" onclick="revisePlan()">✏ 修改需求</button></div>';
+  card.innerHTML = '<div class="plan-title">'+_dualIcon('','fa-clock')+' ' + escHtml(plan.title||'执行计划') + '</div>' + h +
+    '<div class="plan-actions"><button class="btn-primary" onclick="approvePlan()"><i class="icon-fa fa-solid fa-check"></i> 批准执行</button><button class="btn-outline" onclick="revisePlan()"><i class="icon-fa fa-solid fa-pen-to-square"></i> 修改需求</button></div>';
   document.getElementById('chatMessages').appendChild(card);
   card.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
@@ -513,11 +513,11 @@ async function approvePlan() {
               break;
             case 'plan_fallback':
               if(phaseDiv)phaseDiv.remove();
-              phaseDiv=addPhase(_dualIcon('🔄','fa-rotate')+' '+(evt.message||'执行中'),'thinking');
+              phaseDiv=addPhase(_dualIcon('','fa-rotate')+' '+(evt.message||'执行中'),'thinking');
               break;
             case 'thinking':
               if(phaseDiv)phaseDiv.remove();
-              phaseDiv=addPhase(_dualIcon('🤔','fa-brain')+' 思考中...'+(evt.round?' ('+evt.round+')':''),'thinking');
+              phaseDiv=addPhase(_dualIcon('','fa-brain')+' 思考中...'+(evt.round?' ('+evt.round+')':''),'thinking');
               document.getElementById('stopBtn').style.display='';
               break;
             case 'think_token':
@@ -540,22 +540,22 @@ async function approvePlan() {
               break;
             case 'tool_call':
               if(phaseDiv)phaseDiv.remove();
-              phaseDiv=addPhase(_dualIcon('🔧','fa-wrench')+' '+(evt.tools||[]).join(', '),'thinking');
+              phaseDiv=addPhase(_dualIcon('','fa-wrench')+' '+(evt.tools||[]).join(', '),'thinking');
               var tools=evt.tools||[];
               var tcCard=document.createElement('div');
               tcCard.className='tool-card tc-running';
               tcCard.innerHTML='<div class="tc-header" onclick="this.nextElementSibling.classList.toggle(\'collapsed\');var t=this.querySelector(\'.tc-toggle\');t.textContent=t.textContent==\'▼\'?\'▶\':\'▼\'">'+
-                '<span class="tc-icon">'+_dualIcon('🔧','fa-wrench')+'</span><span class="tc-name">调用: '+tools.join(', ')+'</span><span class="tc-status">执行中...</span><span class="tc-toggle">▼</span></div>'+
+                '<span class="tc-icon">'+_dualIcon('','fa-wrench')+'</span><span class="tc-name">调用: '+tools.join(', ')+'</span><span class="tc-status">执行中...</span><span class="tc-toggle">▼</span></div>'+
                 '<div class="tc-body"><span style="color:#999">等待结果...</span></div>';
               msgs.appendChild(tcCard);
               _autoScroll(msgs);
               break;
             case 'plan_correction':
               if(phaseDiv)phaseDiv.remove();
-              phaseDiv=addPhase(_dualIcon('🔧','fa-wrench')+' '+(evt.reason||'自动修正中...'),'thinking');
+              phaseDiv=addPhase(_dualIcon('','fa-wrench')+' '+(evt.reason||'自动修正中...'),'thinking');
               var corrCard=document.createElement('div');
               corrCard.className='tool-card tc-running';
-              corrCard.innerHTML='<div class="tc-header"><span class="tc-icon">'+_dualIcon('🔧','fa-wrench')+'</span><span class="tc-name">修正步骤'+(evt.step||'')+'：'+(evt.tool||'')+'</span><span class="tc-status">执行中...</span><span class="tc-toggle">▼</span></div><div class="tc-body"><span style="color:#999">等待结果...</span></div>';
+              corrCard.innerHTML='<div class="tc-header"><span class="tc-icon">'+_dualIcon('','fa-wrench')+'</span><span class="tc-name">修正步骤'+(evt.step||'')+'：'+(evt.tool||'')+'</span><span class="tc-status">执行中...</span><span class="tc-toggle">▼</span></div><div class="tc-body"><span style="color:#999">等待结果...</span></div>';
               msgs.appendChild(corrCard);
               _autoScroll(msgs);
               break;
@@ -581,21 +581,21 @@ async function approvePlan() {
                 var snip=clean.substring(0,250);
                 var isErr=/错误|出错|执行超时|不存在|失败/.test(raw);
                 if(isErr)lc.classList.add('tc-error');
-                lc.querySelector('.tc-status').textContent=isErr?(_dualIcon('❌','fa-circle-xmark')+' 出错'):(_dualIcon('✅','fa-circle-check')+' 完成');
+                lc.querySelector('.tc-status').textContent=isErr?(_dualIcon('','fa-circle-xmark')+' 出错'):(_dualIcon('','fa-circle-check')+' 完成');
                 var bd=lc.querySelector('.tc-body'); if(bd)bd.textContent=snip||'(无输出)';
-              }else{phaseDiv=addPhase((evt.result&&/错误|出错/.test(evt.result)?_dualIcon('❌','fa-circle-xmark'):_dualIcon('✅','fa-circle-check'))+' '+evt.tool,'result');}
+              }else{phaseDiv=addPhase((evt.result&&/错误|出错/.test(evt.result)?_dualIcon('','fa-circle-xmark'):_dualIcon('','fa-circle-check'))+' '+evt.tool,'result');}
               break;
             case 'plan_eval':
               if(phaseDiv)phaseDiv.remove();
-              phaseDiv=addPhase(_dualIcon('🔍','fa-magnifying-glass')+' '+(evt.message||'验证中'),'thinking');
+              phaseDiv=addPhase(_dualIcon('','fa-magnifying-glass')+' '+(evt.message||'验证中'),'thinking');
               break;
             case 'plan_eval_done':
               if(phaseDiv)phaseDiv.remove();
-              phaseDiv=addPhase((evt.ok?_dualIcon('✅','fa-circle-check'):_dualIcon('🔧','fa-wrench'))+' '+(evt.message||''), evt.ok?'result':'thinking');
+              phaseDiv=addPhase((evt.ok?_dualIcon('','fa-circle-check'):_dualIcon('','fa-wrench'))+' '+(evt.message||''), evt.ok?'result':'thinking');
               setTimeout(function(){if(phaseDiv)phaseDiv.remove();}, 2000);
               break;
-            case 'plan_answering': if(phaseDiv)phaseDiv.remove(); phaseDiv=addPhase(_dualIcon('🤔','fa-brain')+' '+(evt.message||'思考中'),'thinking'); break;
-            case 'answering': if(phaseDiv)phaseDiv.remove(); phaseDiv=addPhase(_dualIcon('🤔','fa-brain')+' 正在生成回答...','thinking'); aiDiv=addMessage('assistant',''); document.getElementById('stopBtn').style.display='none'; break;
+            case 'plan_answering': if(phaseDiv)phaseDiv.remove(); phaseDiv=addPhase(_dualIcon('','fa-brain')+' '+(evt.message||'思考中'),'thinking'); break;
+            case 'answering': if(phaseDiv)phaseDiv.remove(); phaseDiv=addPhase(_dualIcon('','fa-brain')+' 正在生成回答...','thinking'); aiDiv=addMessage('assistant',''); document.getElementById('stopBtn').style.display='none'; break;
             case 'answer':
               if(!aiDiv){if(phaseDiv)phaseDiv.remove();aiDiv=addMessage('assistant','');}
               fullReply+=evt.token||'';
@@ -809,8 +809,8 @@ function renderSkillCard(skill, isActive) {
   var activeClass = isActive ? 'active' : '';
   var activeStyle = isActive ? ' style="background:#e8f5e9;border-color:#27ae60"' : '';
   var btnHtml = isActive
-    ? '<button class="btn btn-sm btn-outline" style="color:var(--danger);border-color:var(--danger)" onclick="deactivateSkill(\'' + name + '\')"><span class="icon-emoji">✕</span><i class="icon-fa fa-solid fa-xmark"></i> 卸载</button>'
-    : '<button class="btn btn-sm btn-primary" onclick="activateSkill(\'' + name + '\')"><span class="icon-emoji">✓</span><i class="icon-fa fa-solid fa-check"></i> 激活</button>';
+    ? '<button class="btn btn-sm btn-outline" style="color:var(--danger);border-color:var(--danger)" onclick="deactivateSkill(\'' + name + '\')"><i class="icon-fa fa-solid fa-xmark"></i> 卸载</button>'
+    : '<button class="btn btn-sm btn-primary" onclick="activateSkill(\'' + name + '\')"><i class="icon-fa fa-solid fa-check"></i> 激活</button>';
   return '<div class="skill-card ' + activeClass + '"' + activeStyle + ' data-skill-name="' + escHtml(name) + '">'
     + '<div class="skill-card-name">' + escHtml(name) + '<span class="active-badge">已激活</span></div>'
     + '<div class="skill-card-toggle" onmouseenter="hoverSkillDesc(event, this, \'' + escHtml(desc) + '\')" onmouseleave="hideSkillDesc(event, this)"><span class="toggle-arrow">▸</span> 详细信息</div>'
@@ -958,6 +958,39 @@ function onChatKeydown(e) {
     e.preventDefault();
     sendChat();
   }
+}
+
+/* ═══════════════ 快捷标签/Craft/技能/工作空间 ═══════════════ */
+function quickTagFill(text) {
+  var input = document.getElementById('chatInput');
+  if (!input) return;
+  input.value = (input.value ? input.value + ' ' : '') + text;
+  input.focus();
+  if (typeof autoResize === 'function') autoResize(input);
+  // 触发动态调整高度
+  input.dispatchEvent(new Event('input'));
+}
+
+function toggleCraftMenu(e) {
+  if (e) e.stopPropagation();
+  toast('Craft 模式选择待接入', 'info');
+}
+
+function toggleSkillMenu(e) {
+  if (e) e.stopPropagation();
+  if (typeof showSkillsPage === 'function') showSkillsPage();
+  else toast('技能管理待接入', 'info');
+}
+
+function toggleWorkspaceMenu(e) {
+  if (e) e.stopPropagation();
+  toast('工作空间选择待接入', 'info');
+}
+
+function autoResizeInput(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 160) + 'px';
 }
 
 /* ═══════════════ 文件上传 ═══════════════ */
@@ -1121,7 +1154,7 @@ async function sendChat() {
     let toolTimers = {};
     let statusBar = document.createElement('div');
     statusBar.className = 'phase-badge phase-thinking status-bar';
-    statusBar.textContent = '⏳ 处理中';
+    statusBar.textContent = '处理中';
     msgs.appendChild(statusBar);
 
     while (true) {
@@ -1168,24 +1201,24 @@ async function sendChat() {
               if (statusBar) {
                 var tok = evt.token || '';
                 if (tok.indexOf('🔧') >= 0 || tok.indexOf('调用工具') >= 0) {
-                  statusBar.textContent = '🔧 运行工具...';
+                  statusBar.textContent = '运行工具...';
                 } else if (tok.indexOf('验证') >= 0 || tok.indexOf('检查') >= 0) {
-                  statusBar.textContent = '🔍 验证中...';
-                } else if (statusBar.textContent === '🔧 运行工具...' && !tok.indexOf('[') === 0) {
+                  statusBar.textContent = '验证中...';
+                } else if (statusBar.textContent === '运行工具...' && !tok.indexOf('[') === 0) {
                   // keep tool status visible
                 } else {
-                  statusBar.textContent = '🤔 思考...';
+                  statusBar.textContent = '思考...';
                 }
               }
               break;
             case 'thinking':
               if (phaseDiv) phaseDiv.remove();
-              phaseDiv = addPhase('🤔 思考中... (' + (evt.round||'') + ')', 'thinking');
+              phaseDiv = addPhase('思考中... (' + (evt.round||'') + ')', 'thinking');
               document.getElementById('stopBtn').style.display = '';
               break;
             case 'self_check':
               if (phaseDiv) phaseDiv.remove();
-              phaseDiv = addPhase('🔄 科吉二次确认中...', 'thinking');
+              phaseDiv = addPhase('二次确认中...', 'thinking');
               document.getElementById('stopBtn').style.display = '';
               break;
             case 'tool_call':
@@ -1233,22 +1266,22 @@ async function sendChat() {
                 var snippet = (evt.result||'').substring(0, 300);
                 var isErr = evt.result && (evt.result.indexOf('错误') >= 0 || evt.result.indexOf('出错') >= 0);
                 if (isErr) lastCard.classList.add('tc-error');
-                lastCard.querySelector('.tc-status').textContent = isErr ? '❌ 出错' : '✅ 完成';
+                lastCard.querySelector('.tc-status').textContent = isErr ? '出错' : '完成';
                 var body = lastCard.querySelector('.tc-body');
                 body.textContent = snippet;
               } else {
-                phaseDiv = addPhase((evt.result && evt.result.indexOf('错误') >= 0 ? '❌ ' : '✅ ') + evt.tool + ' 完成', evt.result && evt.result.indexOf('错误') >= 0 ? 'error' : 'result');
+                phaseDiv = addPhase((evt.result && evt.result.indexOf('错误') >= 0 ? '[错误] ' : '[完成] ') + evt.tool + ' 完成', evt.result && evt.result.indexOf('错误') >= 0 ? 'error' : 'result');
               }
               if (thinkingBody && isShowThinking()) {
                 var snippet2 = (evt.result||'').substring(0, 150);
-                thinkingHtml += '✅ ' + evt.tool + ' → ' + snippet2 + '\n';
+                thinkingHtml += '[完成] ' + evt.tool + ' → ' + snippet2 + '\n';
                 thinkingBody.innerHTML = _replaceEmoji(thinkingHtml);
                 _autoScroll(msgs);
               }
               break;
             case 'answering':
               if (phaseDiv) phaseDiv.remove();
-              if (statusBar) { statusBar.textContent = '💬 回答中'; }
+              if (statusBar) { statusBar.textContent = '回答中'; }
               aiDiv = addMessage('assistant', '');
               document.getElementById('stopBtn').style.display = 'none';
               break;
@@ -1266,7 +1299,7 @@ async function sendChat() {
               document.getElementById('stopBtn').style.display = 'none';
               if (thinkingTimer) { clearInterval(thinkingTimer); thinkingTimer = null; }
               if (statusBar) {
-                statusBar.textContent = '✅ 完成';
+                statusBar.textContent = '完成';
                 setTimeout(function(){
                   if (statusBar) { statusBar.remove(); statusBar = null; }
                 }, 2000);
@@ -1292,11 +1325,11 @@ function addMessage(role, html) {
   const msgs = document.getElementById('chatMessages');
   const div = document.createElement('div');
   div.className = 'message ' + role;
-  var avatarHtml = role === 'user' ? _dualIcon('👤', 'fa-user') : _dualIcon('🤖', 'fa-robot');
+  var avatarHtml = role === 'user' ? _dualIcon('', 'fa-user') : _dualIcon('', 'fa-robot');
   div.innerHTML =
     '<div class="avatar">' + avatarHtml + '</div>' +
     '<div class="bubble">' + html + '</div>' +
-    '<button class="copy-btn" onclick="copyMessage(this)" title="复制内容">' + _dualIcon('📋', 'fa-copy') + '</button>';
+    '<button class="copy-btn" onclick="copyMessage(this)" title="复制内容">' + _dualIcon('', 'fa-copy') + '</button>';
   msgs.appendChild(div);
   _autoScroll(msgs);
   return div.querySelector('.bubble');
@@ -1306,8 +1339,8 @@ function copyMessage(btn) {
   var bubble = btn.parentNode.querySelector('.bubble');
   if (!bubble) return;
   var text = bubble.textContent || '';
-  var doneIcon = _dualIcon('✅', 'fa-circle-check');
-  var copyIcon = _dualIcon('📋', 'fa-copy');
+  var doneIcon = _dualIcon('', 'fa-circle-check');
+  var copyIcon = _dualIcon('', 'fa-copy');
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text).then(function() {
       btn.innerHTML = doneIcon;

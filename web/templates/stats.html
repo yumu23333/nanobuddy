@@ -1,0 +1,150 @@
+ 
+  <!-- ===== 统计页面 ===== -->
+  <div class="page" id="page-stats">
+    <div class="page-header">
+      <div>
+        <h2>
+          <i class="icon-fa fa-solid fa-chart-simple" style="margin-right:6px"></i>使用统计
+        </h2>
+        <p>所有对话的 token 消耗概览与趋势分析</p>
+      </div>
+    </div>
+
+    <div class="stats-body">
+      <!-- 统计卡片行 -->
+      <div class="stats-summary" id="statsSummary">
+        <div class="s-card" data-key="convs">
+          <div class="s-card-icon" style="background:linear-gradient(135deg,#f59e0b,#f97316)">
+            <i class="icon-fa fa-solid fa-comments"></i>
+          </div>
+          <div class="s-card-body">
+            <div class="s-card-number" id="sNumConvs">-</div>
+            <div class="s-card-label">总对话数</div>
+          </div>
+        </div>
+        <div class="s-card" data-key="total">
+          <div class="s-card-icon" style="background:linear-gradient(135deg,#4f6ef7,#6366f1)">
+            <i class="icon-fa fa-solid fa-font"></i>
+          </div>
+          <div class="s-card-body">
+            <div class="s-card-number" id="sNumTotal">-</div>
+            <div class="s-card-label">总消耗</div>
+          </div>
+        </div>
+        <div class="s-card" data-key="prompt">
+          <div class="s-card-icon" style="background:linear-gradient(135deg,#7c4dff,#b388ff)">
+            <i class="icon-fa fa-solid fa-pen"></i>
+          </div>
+          <div class="s-card-body">
+            <div class="s-card-number" id="sNumPrompt">-</div>
+            <div class="s-card-label">输入令牌</div>
+          </div>
+        </div>
+        <div class="s-card" data-key="completion">
+          <div class="s-card-icon" style="background:linear-gradient(135deg,#00c853,#69f0ae)">
+            <i class="icon-fa fa-solid fa-check"></i>
+          </div>
+          <div class="s-card-body">
+            <div class="s-card-number" id="sNumCompletion">-</div>
+            <div class="s-card-label">输出令牌</div>
+          </div>
+        </div>
+        <div class="s-card" data-key="cached" style="display:none">
+          <div class="s-card-icon" style="background:linear-gradient(135deg,#00bcd4,#4dd0e1)">
+            <i class="icon-fa fa-solid fa-bolt"></i>
+          </div>
+          <div class="s-card-body">
+            <div class="s-card-number" id="sNumCached">-</div>
+            <div class="s-card-label">缓存命中</div>
+          </div>
+        </div>
+        <div class="s-card" data-key="cost">
+          <div class="s-card-icon" style="background:linear-gradient(135deg,#f44336,#e91e63)">
+            <i class="icon-fa fa-solid fa-coins"></i>
+          </div>
+          <div class="s-card-body">
+            <div class="s-card-number" id="sNumCost">¥0</div>
+            <div class="s-card-label">预估花费 <span style="font-size:10px;opacity:0.6" id="sCostModelHint"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 主体：左图 + 右表 -->
+      <div class="stats-main">
+        <!-- 左列：时间筛选 + 图表 -->
+        <div class="stats-left">
+          <div class="stats-chart-card">
+            <div class="stats-filter" id="statsFilter">
+              <button class="filter-btn" data-range="today" onclick="setStatsFilter('today')">今天</button>
+              <button class="filter-btn" data-range="week" onclick="setStatsFilter('week')">本周</button>
+              <button class="filter-btn" data-range="month" onclick="setStatsFilter('month')">本月</button>
+              <button class="filter-btn active" data-range="all" onclick="setStatsFilter('all')">全部</button>
+            </div>
+            <div class="chart-donut-wrap">
+              <canvas id="donutChart" width="280" height="280"></canvas>
+              <div class="chart-donut-center" id="donutCenter">
+                <div class="chart-center-num" id="donutTotal">-</div>
+                <div class="chart-center-label">总消耗 tokens</div>
+              </div>
+            </div>
+            <div class="chart-legend" id="chartLegend">
+              <div class="legend-item" data-key="prompt">
+                <span class="legend-dot" style="background:#7c4dff"></span>
+                <span class="legend-label">输入令牌</span>
+                <span class="legend-num" id="legendPrompt">-</span>
+              </div>
+              <div class="legend-item" data-key="completion">
+                <span class="legend-dot" style="background:#00c853"></span>
+                <span class="legend-label">输出令牌</span>
+                <span class="legend-num" id="legendCompletion">-</span>
+              </div>
+              <div class="legend-item" data-key="cached">
+                <span class="legend-dot" style="background:#00bcd4"></span>
+                <span class="legend-label">缓存命中</span>
+                <span class="legend-num" id="legendCached">-</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右列：表格 -->
+        <div class="stats-right">
+          <div class="stats-table-wrap">
+            <div class="stats-table-header">
+              <h3><i class="icon-fa fa-solid fa-table"></i> 对话详情</h3>
+              <div class="stats-sort" id="statsSort">
+                <span class="stats-sort-label">排序：</span>
+                <button class="stats-sort-btn active" data-sort="date" onclick="sortStatsTable('date')">按日期</button>
+                <button class="stats-sort-btn" data-sort="tokens" onclick="sortStatsTable('tokens')">按用量</button>
+                <button class="stats-sort-btn" data-sort="cost" onclick="sortStatsTable('cost')">按花费</button>
+              </div>
+            </div>
+            <div class="stats-table-scroll">
+              <table class="stats-table" id="statsTable">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th class="sortable" data-sort="title">对话</th>
+                    <th class="sortable" data-sort="date">日期</th>
+                    <th class="num sortable" data-sort="prompt">输入</th>
+                    <th class="num sortable" data-sort="completion">输出</th>
+                    <th class="num">缓存</th>
+                    <th class="num sortable" data-sort="total">总消耗</th>
+                    <th class="num sortable" data-sort="cost">花费</th>
+                    <th class="num">条数</th>
+                  </tr>
+                </thead>
+                <tbody id="statsTableBody"></tbody>
+              </table>
+            </div>
+            <div class="stats-empty" id="statsEmpty" style="display:none">
+              <div class="stats-empty-icon"><i class="icon-fa fa-solid fa-inbox"></i></div>
+              <p>暂无统计数据</p>
+              <p class="stats-empty-hint">发送一条对话后，token 用量会自动记录</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>

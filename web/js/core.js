@@ -144,44 +144,44 @@ var _toolFA = {
   db_execute_query: 'fa-bolt', db_test_connection: 'fa-link', db_disconnect: 'fa-plug-circle-xmark',
 };
 
-// 输出双版本图标 HTML
+// 输出 Font Awesome 图标 HTML
 function _dualIcon(emoji, faClass) {
   if (!faClass) faClass = _emojiFA[emoji] || 'fa-circle';
-  return '<span class="icon-emoji">' + emoji + '</span><i class="icon-fa fa-solid ' + faClass + '"></i>';
+  return '<i class="icon-fa fa-solid ' + faClass + '"></i>';
 }
-// 将文本中的已知 emoji 替换为双图标 HTML（用于思考面板等 textContent → innerHTML 迁移）
+// 将文本中的已知 emoji 替换为 FA 图标 HTML
 function _replaceEmoji(text) {
   if (!text) return text;
   var map = { '🔧': 'fa-wrench', '✅': 'fa-circle-check', '❌': 'fa-circle-xmark', '🧠': 'fa-brain', '🤔': 'fa-brain', '🔄': 'fa-rotate' };
   for (var em in map) {
     var re = new RegExp(em.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
-    text = text.split(em).join(_dualIcon(em, map[em]));
+    text = text.split(em).join('<i class="fa-solid ' + map[em] + '"></i>');
   }
   return text;
 }
 
 // 分类中文名
 var _catNames = {
-  utility: { emoji: '⚡', label: '常用工具', fa: 'fa-bolt' },
-  io: { emoji: '📂', label: '文件读写', fa: 'fa-folder-open' },
-  web: { emoji: '🌐', label: '网络搜索', fa: 'fa-globe' },
-  filesystem: { emoji: '📁', label: '文件管理', fa: 'fa-folder' },
-  knowledge: { emoji: '📚', label: '知识库', fa: 'fa-book-open' },
-  office: { emoji: '📝', label: '办公文档', fa: 'fa-file-pen' },
-  data: { emoji: '📊', label: '数据处理', fa: 'fa-chart-simple' },
-  general: { emoji: '🔧', label: '其他', fa: 'fa-wrench' },
+  utility: { label: '常用工具', fa: 'fa-bolt' },
+  io: { label: '文件读写', fa: 'fa-folder-open' },
+  web: { label: '网络搜索', fa: 'fa-globe' },
+  filesystem: { label: '文件管理', fa: 'fa-folder' },
+  knowledge: { label: '知识库', fa: 'fa-book-open' },
+  office: { label: '办公文档', fa: 'fa-file-pen' },
+  data: { label: '数据处理', fa: 'fa-chart-simple' },
+  general: { label: '其他', fa: 'fa-wrench' },
 };
 
 // 分类配色
 var _catColors = {
-  utility: { icon: '⚡', bg: '#fff3e0', color: '#e65100', border: '#ffe0b2' },
-  io: { icon: '📂', bg: '#e3f2fd', color: '#1565c0', border: '#bbdefb' },
-  web: { icon: '🌐', bg: '#e8f5e9', color: '#2e7d32', border: '#c8e6c9' },
-  filesystem: { icon: '📁', bg: '#f3e5f5', color: '#6a1b9a', border: '#e1bee7' },
-  knowledge: { icon: '📚', bg: '#fce4ec', color: '#c62828', border: '#f8bbd0' },
-  office: { icon: '📝', bg: '#e0f7fa', color: '#00695c', border: '#b2ebf2' },
-  data: { icon: '📊', bg: '#eceff1', color: '#37474f', border: '#cfd8dc' },
-  general: { icon: '🔧', bg: '#f5f5f5', color: '#616161', border: '#e0e0e0' },
+  utility: { bg: '#fff3e0', color: '#e65100', border: '#ffe0b2' },
+  io: { bg: '#e3f2fd', color: '#1565c0', border: '#bbdefb' },
+  web: { bg: '#e8f5e9', color: '#2e7d32', border: '#c8e6c9' },
+  filesystem: { bg: '#f3e5f5', color: '#6a1b9a', border: '#e1bee7' },
+  knowledge: { bg: '#fce4ec', color: '#c62828', border: '#f8bbd0' },
+  office: { bg: '#e0f7fa', color: '#00695c', border: '#b2ebf2' },
+  data: { bg: '#eceff1', color: '#37474f', border: '#cfd8dc' },
+  general: { bg: '#f5f5f5', color: '#616161', border: '#e0e0e0' },
 };
 
 // 加载并分组渲染工具
@@ -215,13 +215,12 @@ function loadTools() {
       var tools = groups[cat];
       var c = _catColors[cat] || _catColors.general;
       var catInfo = _catNames[cat];
-      html += '<div class="tp-category">' + (catInfo ? _dualIcon(catInfo.emoji, catInfo.fa) + ' ' + catInfo.label : cat) + '</div>';
+      html += '<div class="tp-category">' + (catInfo ? '<i class="fa-solid ' + catInfo.fa + '"></i> ' + catInfo.label : cat) + '</div>';
       html += '<div class="tp-tags">';
       tools.forEach(function(t) {
         var label = nameMap[t.name] || t.name;
-        var emoji = _toolIcons[t.name] || '⚙️';
         var fa = _toolFA[t.name] || 'fa-wrench';
-        html += '<span class="tp-tag" style="background:' + c.bg + ';color:' + c.color + ';border-color:' + c.border + '" title="' + t.name + '">' + _dualIcon(emoji, fa) + ' ' + label + '</span>';
+        html += '<span class="tp-tag" style="background:' + c.bg + ';color:' + c.color + ';border-color:' + c.border + '" title="' + t.name + '"><i class="fa-solid ' + fa + '"></i> ' + label + '</span>';
       });
       html += '</div>';
     });
@@ -282,19 +281,6 @@ function escHtml(s) {
 }
 
 function getFileIcon(ext) {
-  var emojiMap = {
-    '.pdf': '📕', '.docx': '📘', '.doc': '📘', '.xlsx': '📗', '.xls': '📗',
-    '.csv': '📊', '.json': '📋', '.yaml': '📋', '.yml': '📋',
-    '.py': '🐍', '.js': '📜', '.ts': '📜', '.java': '☕', '.cpp': '⚙️',
-    '.c': '⚙️', '.h': '⚙️', '.rs': '🦀', '.go': '🔵',
-    '.html': '🌐', '.htm': '🌐', '.css': '🎨', '.xml': '📰',
-    '.md': '📝', '.txt': '📄', '.log': '📋',
-    '.sql': '🗃️', '.sh': '💻', '.bat': '💻', '.ps1': '💻',
-    '.jpg': '🖼️', '.jpeg': '🖼️', '.png': '🖼️', '.gif': '🖼️',
-    '.zip': '📦', '.rar': '📦', '.7z': '📦',
-    '.exe': '⚡', '.msi': '⚡',
-    '.toml': '⚙️', '.ini': '⚙️', '.cfg': '⚙️', '.conf': '⚙️',
-  };
   var faMap = {
     '.pdf': 'fa-file-pdf', '.docx': 'fa-file-word', '.doc': 'fa-file-word',
     '.xlsx': 'fa-file-excel', '.xls': 'fa-file-excel',
@@ -309,9 +295,8 @@ function getFileIcon(ext) {
     '.exe': 'fa-gear', '.msi': 'fa-gear',
     '.toml': 'fa-gear', '.ini': 'fa-gear', '.cfg': 'fa-gear', '.conf': 'fa-gear',
   };
-  var emoji = emojiMap[ext] || '📄';
   var fa = faMap[ext] || 'fa-file';
-  return _dualIcon(emoji, fa);
+  return '<i class="icon-fa fa-solid ' + fa + '"></i>';
 }
 
 function renderMarkdown(text) {

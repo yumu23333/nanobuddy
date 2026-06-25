@@ -165,9 +165,9 @@ function adminRoleLabel(role) {
 }
 
 function adminRoleIcon(role) {
-  if (role === 'admin') return '<span class="icon-emoji">🛡️</span><i class="icon-fa fa-solid fa-user-shield"></i>';
-  if (role === 'readonly') return '<span class="icon-emoji">👁️</span><i class="icon-fa fa-solid fa-eye"></i>';
-  return '<span class="icon-emoji">👤</span><i class="icon-fa fa-solid fa-user"></i>';
+  if (role === 'admin') return '<i class="icon-fa fa-solid fa-user-shield"></i>';
+  if (role === 'readonly') return '<i class="icon-fa fa-solid fa-eye"></i>';
+  return '<i class="icon-fa fa-solid fa-user"></i>';
 }
 
 function updateAdminStats() {
@@ -373,7 +373,7 @@ async function loadAdminConversations() {
 
 function adminPreviewEmptyHtml() {
   return '<div class="admin-preview-scroll"><div class="admin-preview-empty">' +
-    '<div class="big-icon"><span class="icon-emoji">💬</span><i class="icon-fa fa-solid fa-message"></i></div>' +
+    '<div class="big-icon"><i class="icon-fa fa-solid fa-message"></i></div>' +
     '<p>从左侧选择一条对话查看最近消息</p></div></div>';
 }
 
@@ -438,4 +438,76 @@ function loadAdminPage() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', bindLoginForm);
+function showRegisterForm() {
+  var el = document.getElementById('registerOverlay');
+  if (el) el.classList.add('open');
+}
+
+function hideRegisterForm() {
+  var el = document.getElementById('registerOverlay');
+  if (el) el.classList.remove('open');
+  var err = document.getElementById('registerError');
+  if (err) err.textContent = '';
+}
+
+function bindRegisterForm() {
+  var form = document.getElementById('registerForm');
+  if (!form || form._bound) return;
+  form._bound = true;
+  form.addEventListener('submit', async function(ev) {
+    ev.preventDefault();
+    var user = document.getElementById('registerUsername').value.trim();
+    var pass = document.getElementById('registerPassword').value;
+    var confirmPass = document.getElementById('registerConfirmPassword').value;
+    var err = document.getElementById('registerError');
+    
+    if (!user || !pass || !confirmPass) {
+      if (err) err.textContent = '请填写所有字段';
+      return;
+    }
+    if (pass !== confirmPass) {
+      if (err) err.textContent = '两次输入的密码不一致';
+      return;
+    }
+    if (user.length < 2) {
+      if (err) err.textContent = '用户名至少 2 个字符';
+      return;
+    }
+    if (pass.length < 6) {
+      if (err) err.textContent = '密码至少 6 位';
+      return;
+    }
+    if (err) err.textContent = '';
+    
+    try {
+      var res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user, password: pass }),
+      });
+      var data = {};
+      try { data = await res.json(); } catch (e) { /* ignore */ }
+      if (!res.ok) {
+        if (err) err.textContent = formatApiDetail(data) || ('注册失败 (HTTP ' + res.status + ')');
+        return;
+      }
+      if (typeof toast === 'function') {
+        toast('注册成功，请登录', 'success');
+      } else {
+        alert('注册成功，请登录');
+      }
+      hideRegisterForm();
+      document.getElementById('registerUsername').value = '';
+      document.getElementById('registerPassword').value = '';
+      document.getElementById('registerConfirmPassword').value = '';
+      document.getElementById('loginUsername').value = user;
+    } catch (e) {
+      if (err) err.textContent = '网络错误';
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  bindLoginForm();
+  bindRegisterForm();
+});

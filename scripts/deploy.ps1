@@ -20,12 +20,9 @@ Write-Step "Create venv (Python 3.10+)"
 $venvPy = Join-Path $Root "venv\Scripts\python.exe"
 if (-not (Test-Path $venvPy)) {
     $created = $false
-    if (Get-Command py -ErrorAction SilentlyContinue) {
-        foreach ($ver in @("-3.12", "-3.11", "-3.10", "-3")) {
-            & py $ver -m venv (Join-Path $Root "venv") 2>$null
-            if (Test-Path $venvPy) { Write-Ok ("venv via py $ver"); $created = $true; break }
-        }
-    }
+
+    & python -m venv (Join-Path $Root "venv")
+    if (Test-Path $venvPy) { Write-Ok "venv via python"; $created = $true }   
     if (-not $created -and (Get-Command python -ErrorAction SilentlyContinue)) {
         & python -m venv (Join-Path $Root "venv")
         if (Test-Path $venvPy) { Write-Ok "venv via python"; $created = $true }

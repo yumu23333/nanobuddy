@@ -1,12 +1,12 @@
 MIT License
-
+Copyright (c) 2026 yumu23333
 Copyright (c) 2026 Zuofeng198
-
-This license applies to Keji-specific portions of this repository (including
+Copyright (c) 2025 HKUDS nanobot contributors
+This license applies to nanobuddy-specific portions of this repository (including
 `core/`, `web/`, `main.py`, deployment scripts, and related documentation).
 
 Portions of this software are derived from third-party open source projects,
-including nanobot (HKUDS/nanobot, MIT). See THIRD_PARTY_NOTICES.md for
+including nanobot (HKUDS/nanobot, MIT) and keji agent. See THIRD_PARTY_NOTICES.md for
 attributions and additional license terms.
 
 ---

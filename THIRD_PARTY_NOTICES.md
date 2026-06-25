@@ -1,12 +1,14 @@
-# 第三方组件与致谢
+# 第三方组件与致谢 (Third-Party Notices)
 
-本仓库在 [MIT License](../LICENSE) 下发布**科吉（Keji）自有部分**（如 `core/`、`web/`、`main.py`、多用户与工作区等）。
+本仓库在 [MIT License](../LICENSE) 下发布 **nanobuddy 自有部分**（如 `core/`、`web/`、`main.py`、多用户与工作区等）。
 
-以下组件为独立开源项目或附带单独许可，使用时请遵守各自条款。科吉对上游项目表示感谢。
+以下组件为独立开源项目或附带单独许可，使用时请遵守各自条款。nanobuddy 项目对上游贡献者表示感谢。
 
 ---
 
 ## 1. nanobot（Agent 引擎，核心依赖）
+
+本项目的 Agent 核心能力源自 **nanobot**，该项目由 HKUDS 团队开发。
 
 | 项目 | 说明 |
 |------|------|
@@ -15,13 +17,27 @@
 | **版权** | Copyright (c) 2025 nanobot contributors |
 | **本仓库位置** | `nanobot/` 目录（含 Agent 运行时、工具、Provider、会话等） |
 
-科吉在 nanobot 之上增加了 Web 界面、多用户鉴权、团队工作区、权限控制与企业部署脚本等。**Agent 核心能力来自 HKUDS 团队的 nanobot 项目**，并非科吉原创。
+**衍生关系说明：**
+本项目 (nanobuddy) 是基于 **Keji Agent (Copyright 2026 Zuofeng198)** 进行的二次开发，而 Keji Agent 本身是基于 nanobot 构建的。因此，本仓库的 `nanobot/` 目录及其核心逻辑遵循 nanobot 的原始 MIT 许可。
 
-本仓库内 `nanobot/` 基于上游代码集成并做了适配（如 `nanobot/adapter.py`）。若你分发本仓库，请保留 `nanobot/LICENSE` 及本文件中的署名说明。
+本仓库在 nanobot 及 Keji Agent 的基础上增加了 Web 界面、多用户鉴权、团队工作区、权限控制与企业部署脚本等增强功能。若你分发本仓库，请务必保留 `nanobot/LICENSE` 及本文件中的署名说明。
 
 ---
 
-## 2. quack-mcp（MCP 服务，可选）
+## 2. Keji Agent（上游派生来源）
+
+为了合规透明，特此声明本项目的直接上游来源：
+
+| 项目 | 说明 |
+|------|------|
+| **原项目** | Keji Agent |
+| **原作者** | Zuofeng198 |
+| **许可** | MIT License |
+| **关联说明** | 本项目代码库的基础架构继承自 Keji Agent，并在此基础上进行了重构与品牌更名。 |
+
+---
+
+## 3. quack-mcp（MCP 服务，可选）
 
 | 项目 | 说明 |
 |------|------|
@@ -33,7 +49,7 @@
 
 ---
 
-## 3. skills/（技能模板，可选）
+## 4. skills/（技能模板，可选）
 
 `skills/` 下各子目录为 bundled 技能示例/模板，**各自目录内可能有独立 `LICENSE.txt`**，常见来源包括 Anthropic 官方 Skills 等。
 
@@ -42,7 +58,7 @@
 
 ---
 
-## 4. Python / Node 运行时依赖
+## 5. Python / Node 运行时依赖
 
 通过 `requirements.txt` 及部署脚本安装的包（如 FastAPI、uvicorn、chromadb、torch 等）由 PyPI / npm 上游各自许可。
 
@@ -50,15 +66,16 @@
 
 ---
 
-## 5. 模型与 API 服务
+## 6. 模型与 API 服务
 
-科吉通过配置连接 **DeepSeek、OpenAI、Anthropic** 等第三方 API。这些服务的使用受各平台**服务条款与计费政策**约束，与本仓库 MIT 许可无关。
+nanobuddy 通过配置连接 **DeepSeek、OpenAI、Anthropic** 等第三方 API。这些服务的使用受各平台**服务条款与计费政策**约束，与本仓库 MIT 许可无关。
 
 ---
 
 ## 致谢摘要
 
-- **[HKUDS/nanobot](https://github.com/HKUDS/nanobot)** — 轻量级 Agent 框架，科吉的对话与工具引擎建立在其之上。
+- **[HKUDS/nanobot](https://github.com/HKUDS/nanobot)** — 轻量级 Agent 框架，本项目对话与工具引擎的基础。
+- **Keji Agent (Zuofeng198)** — 本项目的直接上游基础架构贡献者。
 - 其他开源依赖与技能作者 — 见各目录 LICENSE 文件。
 
 如有遗漏或需更正，欢迎提 Issue。

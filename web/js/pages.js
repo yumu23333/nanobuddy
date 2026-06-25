@@ -837,7 +837,7 @@ function showDbConfigForm(editId) {
   body += '<div style="margin-bottom:12px"><label style="font-size:13px;font-weight:500;display:block;margin-bottom:4px">数据库名</label><input id="fld_database_name" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box"></div>';
   body += '<div style="margin-bottom:12px"><label style="font-size:13px;font-weight:500;display:block;margin-bottom:4px">用户名</label><input id="fld_username" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box"></div>';
   body += '<div style="margin-bottom:12px"><label style="font-size:13px;font-weight:500;display:block;margin-bottom:4px">密码</label><input id="fld_password" type="password" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box"></div>';
-  showDialog(editId?'编辑数据源':'新增数据源', body+'<div style="display:flex;gap:8px;margin-top:4px"><button class="btn btn-primary" onclick="saveDbConfigFromForm('+(editId||'null')+')">💾 保存</button><button class="btn btn-outline" onclick="closeDialog()">取消</button></div>');
+  showDialog(editId?'编辑数据源':'新增数据源', body+'<div style="display:flex;gap:8px;margin-top:4px"><button class="btn btn-primary" onclick="saveDbConfigFromForm('+(editId||'null')+')"><i class="icon-fa fa-solid fa-floppy-disk"></i> 保存</button><button class="btn btn-outline" onclick="closeDialog()">取消</button></div>');
   if (editId) {
     kejiFetch('/api/database/configs/'+editId).then(function(r){return r.json()}).then(function(d){
       var cfg = d.config||{};
@@ -906,7 +906,7 @@ function executeSmartQuery() {
 
   function addStep(msg, status) {
     if (!stepsEl) return;
-    var icons = {running:'⏳', completed:'✅', failed:'❌'};
+    var icons = {running:'<i class="icon-fa fa-solid fa-hourglass-half"></i>', completed:'<i class="icon-fa fa-solid fa-check"></i>', failed:'<i class="icon-fa fa-solid fa-xmark"></i>'};
     var icon = icons[status] || '•';
     var color = status === 'failed' ? '#c62828' : (status === 'completed' ? '#2e7d32' : '#f57f17');
     stepsEl.innerHTML += '<div style="font-size:12px;color:'+color+';margin:2px 0">'+icon+' '+escHtml(msg)+'</div>';

@@ -1,4 +1,4 @@
-"""科吉 AI 助手 — 桌面启动器
+"""NanoBuddy — 桌面启动器
 
 双击 exe 自动弹出桌面窗口，如果桌面窗口打不开则自动打开浏览器。
 """
@@ -45,7 +45,7 @@ def start_desktop():
     _open_browser(url)
 
     # 保持服务器运行
-    print(f"科吉 AI 助手运行中: {url}")
+    print(f"NanoBuddy运行中: {url}")
     print("按 Ctrl+C 停止服务")
     try:
         server_thread.join()
@@ -60,7 +60,7 @@ def start_server_only():
 
     url = "http://127.0.0.1:8000"
     print("=" * 50)
-    print("  科吉 AI 助手 v1.0.0.1-Beta")
+    print("  NanoBuddy v1.0.0.1-Beta")
     print("=" * 50)
     print(f"  访问地址: {url}")
     print("  按 Ctrl+C 停止服务")
