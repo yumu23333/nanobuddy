@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import os
 import re
+import threading
 import yaml
 from pathlib import Path
 from typing import Any, AsyncGenerator
@@ -86,6 +88,20 @@ def load_config() -> dict:
     return load_app_config(_PROJECT_ROOT / "config.yaml")
 
 
+def _apply_db_model_settings(config: dict, include_user_prefs: bool = True) -> dict:
+    """叠加设置页保存的模型配置（页面填写的 API Key 存于软件自身数据库）。
+
+    部署者无需在后端 .env / config.yaml 放置密钥；.env 中的密钥作为兜底
+    仍然有效（仅当数据库中没有对应值时才使用）。
+    """
+    try:
+        from core.models.models import apply_model_settings_from_db
+        return apply_model_settings_from_db(config, include_user_prefs=include_user_prefs)
+    except Exception:
+        logger.warning("读取数据库模型设置失败，使用 config.yaml 配置", exc_info=True)
+        return config
+
+
 def _make_provider(config: dict) -> tuple[LLMProvider, str, int]:
     """从 config.yaml 读取模型配置，作为唯一真实来源"""
     models_cfg = config.get("models", {})
@@ -103,7 +119,8 @@ def _make_provider(config: dict) -> tuple[LLMProvider, str, int]:
     if default in ("deepseek", "openai") and not (api_key or "").strip():
         env_name = "DEEPSEEK_API_KEY" if default == "deepseek" else "OPENAI_API_KEY"
         logger.error(
-            "未配置 {} API Key：请在 .env 设置 {}，或在设置页保存 API Key 后重启",
+            "未配置 {} API Key：请在「设置 → 模型配置」页面填写 API Key（保存后立即生效），"
+            "或在 .env 设置 {}",
             default, env_name,
         )
 
@@ -683,11 +700,14 @@ class _LazyTool(Tool):
 
 class NanoBuddyAdapter:
     def __init__(self):
-        self.config = load_config()
+        self.config = _apply_db_model_settings(load_config())
         self.project_root = _PROJECT_ROOT
         raw_provider, self.model, ctx_window = _make_provider(self.config)
         self.provider = TranslatorProvider(raw_provider)
         self.session_manager = SessionManager(self.project_root)
+        # 模型配置指纹：设置页保存新 API Key / 模型时热替换 provider（免重启）
+        self._provider_lock = threading.Lock()
+        self._provider_fp = self._provider_fingerprint()
 
         # 全量工具注册表（用于执行）
         self.tools = self._build_tools()
@@ -717,6 +737,37 @@ class NanoBuddyAdapter:
 
         # ── 取消事件：session_id → asyncio.Event ──
         self._cancel_events: dict[str, asyncio.Event] = {}
+
+    # ── 模型配置热替换（设置页保存 API Key 后免重启生效）──
+
+    def _provider_fingerprint(self) -> str:
+        """当前模型配置指纹（提供商 / 地址 / 模型 / Key 摘要），用于检测变化"""
+        try:
+            cfg = _apply_db_model_settings(load_config())
+            models = cfg.get("models", {})
+            default = models.get("default", "ollama")
+            pc = models.get(default, {}) or {}
+            key = str(pc.get("api_key", "") or "")
+            kfp = hashlib.sha1(key.encode()).hexdigest()[:10] if key else "-"
+            return f"{default}|{pc.get('base_url', '')}|{pc.get('model', '')}|k{kfp}"
+        except Exception:
+            return ""
+
+    def _ensure_provider_current(self):
+        """设置页保存了新 API Key / 模型时，热替换 provider（无需重启服务）"""
+        fp = self._provider_fingerprint()
+        if not fp or fp == self._provider_fp:
+            return
+        with self._provider_lock:
+            if fp == self._provider_fp:
+                return
+            config = _apply_db_model_settings(load_config())
+            raw_provider, model, _ctx = _make_provider(config)
+            self.config = config
+            self.model = model
+            self.provider = TranslatorProvider(raw_provider)
+            self._provider_fp = fp
+            logger.info("Provider hot-reloaded (设置页模型配置已生效): {}", fp)
 
     # ── 飞书渠道集成 ──
 
@@ -1150,6 +1201,7 @@ class NanoBuddyAdapter:
             run_result.usage["source"] = "api"
 
     async def chat(self, query: str, sid: str = "", files: list[str] | None = None) -> str:
+        self._ensure_provider_current()
         sk_pre = sid or "cli:default"
         await self._prepare_session_for_chat(sk_pre)
         msgs, sk = self._build_msgs(query, sid, files)
@@ -1186,6 +1238,7 @@ class NanoBuddyAdapter:
         return reply
 
     async def chat_stream(self, query: str, sid: str = "", files: list[str] | None = None) -> AsyncGenerator[str, None]:
+        self._ensure_provider_current()
         sk_pre = sid or "cli:default"
         compact_note = await self._prepare_session_for_chat(sk_pre)
         msgs, sk = self._build_msgs(query, sid, files)

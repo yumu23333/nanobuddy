@@ -41,6 +41,10 @@ test.docx
 
 # IDE / tooling
 .claude/
+.workbuddy/
+
+# Local test outputs
+test_output.txt
 
 # Accidental / OS junk
 %SystemDrive%/
