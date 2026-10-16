@@ -941,6 +941,7 @@ function processStreamEvent(evt, ctx) {
 
     case 'error':
       toast(`错误: ${escHtml(evt.message || '')}`, 'error');
+      if (isApiKeyError(evt.message || '')) showApiKeyErrorHint(msgs);
       break;
 
     case 'done':
@@ -994,6 +995,64 @@ function createThinkingPanel(msgs) {
   return { panel, body, timer };
 }
 
+// ---------- API Key 引导（未配置时提示用户在页面填写） ----------
+
+const _API_KEY_BANNER_DISMISS_KEY = 'nanobuddy_api_key_banner_dismissed';
+
+function isApiKeyError(msg) {
+  return /Authentication Fails|api[_ ]?key|Incorrect API key|invalid|401|Unauthorized|insufficient|quota|余额|欠费/i.test(msg || '');
+}
+
+async function checkApiKeyBanner() {
+  try {
+    const d = await nanobuddyFetch('/api/settings').then(r => r.json());
+    const s = d.db_settings || {};
+    const usingApiProvider = s.model_type === 'openai' || (s.api_provider && s.api_provider !== 'ollama');
+    if (!usingApiProvider || s.openai_api_key_configured) {
+      dismissApiKeyBanner(true);
+      return;
+    }
+    if (localStorage.getItem(_API_KEY_BANNER_DISMISS_KEY) === '1') return;
+    showApiKeyBanner();
+  } catch { /* 接口不可用时静默跳过 */ }
+}
+
+function showApiKeyBanner() {
+  if (document.getElementById('apiKeyBanner')) return;
+  const msgs = document.getElementById('chatMessages');
+  if (!msgs || !msgs.parentNode) return;
+  const banner = document.createElement('div');
+  banner.id = 'apiKeyBanner';
+  banner.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 14px;margin:0 0 10px;background:#fff7ed;border:1px solid #fdba74;border-radius:8px;font-size:13px;color:#9a3412;line-height:1.5';
+  banner.innerHTML = `
+    <i class="icon-fa fa-solid fa-triangle-exclamation"></i>
+    <span style="flex:1">尚未配置模型 API Key，暂时无法对话。请点击「设置 → 模型配置」，在页面中填写你的 API Key（仅保存于本机软件数据库，无需修改后端配置）。</span>
+    <button style="background:#ea580c;color:#fff;border:none;padding:5px 14px;border-radius:6px;cursor:pointer;font-size:12px;white-space:nowrap" onclick="switchPage('settings')">去设置</button>
+    <button style="background:none;border:none;cursor:pointer;color:#9a3412;font-size:14px;padding:2px 4px" onclick="dismissApiKeyBanner()" title="本次忽略">✕</button>
+  `;
+  msgs.parentNode.insertBefore(banner, msgs);
+}
+
+function dismissApiKeyBanner(silent) {
+  if (!silent) localStorage.setItem(_API_KEY_BANNER_DISMISS_KEY, '1');
+  const b = document.getElementById('apiKeyBanner');
+  if (b) b.remove();
+}
+
+function showApiKeyErrorHint(msgs) {
+  if (document.getElementById('apiKeyErrorHint')) return;
+  const hint = document.createElement('div');
+  hint.id = 'apiKeyErrorHint';
+  hint.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 14px;margin:10px 0;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:13px;color:#991b1b;line-height:1.5';
+  hint.innerHTML = `
+    <i class="icon-fa fa-solid fa-key"></i>
+    <span style="flex:1">这可能是 API Key 未配置或已失效。请在「设置 → 模型配置」中填写有效的 API Key（保存后立即生效），或使用本地 Ollama 模型。</span>
+    <button style="background:#dc2626;color:#fff;border:none;padding:5px 14px;border-radius:6px;cursor:pointer;font-size:12px;white-space:nowrap" onclick="switchPage('settings')">去设置</button>
+  `;
+  (msgs || document.getElementById('chatMessages')).appendChild(hint);
+  autoScroll(msgs || document.getElementById('chatMessages'));
+}
+
 // ---------- 页面切换 ----------
 
 function switchPage(page) {
@@ -1018,6 +1077,7 @@ function switchPage(page) {
     database: () => { loadDbConfigs(); loadDbConfigSelect(); },
     stats: () => setTimeout(loadStats, 50),
     tools: () => setTimeout(loadToolPage, 50),
+    chat: () => setTimeout(checkApiKeyBanner, 50),
     settings: () => setTimeout(() => {
       if (typeof loadModelSettings === 'function') loadModelSettings();
     }, 50),
@@ -1685,6 +1745,7 @@ function closeDropdownHandler(e) {
 document.addEventListener('DOMContentLoaded', () => {
   renderQuickCommands();
   setupDragDrop();
+  checkApiKeyBanner();
 
   // 文件移除委托
   document.addEventListener('click', e => {
@@ -1705,6 +1766,9 @@ document.addEventListener('DOMContentLoaded', () => {
 window.sendChat = sendChat;
 window.newChat = newChat;
 window.switchPage = switchPage;
+window.checkApiKeyBanner = checkApiKeyBanner;
+window.dismissApiKeyBanner = dismissApiKeyBanner;
+window.showApiKeyErrorHint = showApiKeyErrorHint;
 window.toggleSkillPanel = toggleSkillPanel;
 window.toggleQuickCmds = toggleQuickCmds;
 window.onQuickCmdClick = onQuickCmdClick;

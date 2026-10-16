@@ -606,6 +606,9 @@
           <h3>
             <i class="icon-fa fa-solid fa-microchip" style="margin-right:4px"></i> 模型配置
           </h3>
+          <div style="padding:2px 0 12px;font-size:12px;color:var(--text-muted);line-height:1.7">
+            首次使用：选择模型提供商并填写 API Key 即可开始对话。密钥仅保存于本机软件自带的数据库中，不会写入任何配置文件，也不会发送到除模型服务商以外的任何地方；使用本地 Ollama 则无需 API Key。
+          </div>
           <div class="settings-row">
             <div>
               <label>模型类型</label>
@@ -655,7 +658,7 @@
             <div class="settings-row">
               <div>
                 <label>API Key</label>
-                <div class="desc">你的 API 密钥（始终隐藏）</div>
+                <div class="desc">你的 API 密钥（始终隐藏）。仅保存于本机软件数据库，不写入后端配置；留空表示不修改</div>
               </div>
               <input type="password" id="setOpenaiKey" value="" placeholder="sk-..." class="settings-input">
             </div>

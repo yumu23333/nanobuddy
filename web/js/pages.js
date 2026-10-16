@@ -1048,7 +1048,7 @@ async function saveSettings() {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
     });
-    toast(d.message || '设置已保存，请重启服务后对话生效', 'success');
+    toast(d.message || '设置已保存，模型配置已即时生效', 'success');
   } catch (e) {
     toast('保存失败: ' + (e.message || '未知错误'), 'error');
   }
