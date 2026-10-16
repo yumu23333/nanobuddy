@@ -1,4 +1,4 @@
-"""nanobuddy业务工具 — 直接 import 函数调用，不走 CLI 子进程"""
+"""nanobuddy 业务工具 — 直接 import 函数调用，不走 CLI 子进程"""
 
 from __future__ import annotations
 
@@ -35,10 +35,10 @@ def _get_func(name: str) -> Callable | None:
     return None
 
 
-# ── 科吉工具类 ──
+# ── nanobuddy 工具类 ──
 
 class NanoBuddyTool(Tool):
-    """通用科吉工具包装：import 函数 -> asyncio.to_thread 执行"""
+    """通用 nanobuddy 工具包装：import 函数 -> asyncio.to_thread 执行"""
 
     def __init__(self, name: str, description: str, param_schema: dict, required: list[str] | None = None):
         self._name = name
@@ -198,4 +198,4 @@ def register_nanobuddy_tools(registry: ToolRegistry, project_root: Path):
             registry.register(NanoBuddyTool(name, desc, params, required))
         except Exception as e:
             logger.warning("注册 {} 失败: {}", name, e)
-    logger.info("nanobuddy工具注册完成: {} 个", len(TOOL_DEFS))
+    logger.info("nanobuddy 工具注册完成: {} 个", len(TOOL_DEFS))

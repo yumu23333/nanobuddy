@@ -60,7 +60,7 @@ async def test():
     # 读文件
     tf = os.path.join(tmp, 'nanobuddy_readtest.txt')
     with open(tf, 'w', encoding='utf-8') as f:
-        f.write('科吉测试内容')
+        f.write('nanobuddy 测试内容')
     await t('read_document', {'path': tf})
     os.unlink(tf)
 

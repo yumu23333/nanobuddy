@@ -1,4 +1,4 @@
-"""科吉 FastAPI × nanobuddy AgentRunner 适配器"""
+"""nanobuddy FastAPI × nanobuddy AgentRunner 适配器"""
 
 from __future__ import annotations
 
@@ -77,7 +77,7 @@ def load_system_prompt() -> str:
     try:
         _SYSTEM_PROMPT_CACHE = prompt_path.read_text(encoding="utf-8").strip()
     except FileNotFoundError:
-        _SYSTEM_PROMPT_CACHE = "你是科吉，智能AI助手。"
+        _SYSTEM_PROMPT_CACHE = "你是 nanobuddy，智能AI助手。"
     return _SYSTEM_PROMPT_CACHE
 
 

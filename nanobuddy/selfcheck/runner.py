@@ -103,7 +103,7 @@ class SelfCheckReport:
 
     def format_text(self) -> str:
         lines = [
-            "━━━ 科吉系统自检报告 ━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "━━━ nanobuddy 系统自检报告 ━━━━━━━━━━━━━━━━━━━━━━━━━━",
             f"时间: {self.timestamp}",
         ]
         if self.errors:

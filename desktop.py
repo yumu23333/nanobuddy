@@ -25,7 +25,7 @@ def start_desktop():
         import webview
         # pywebview 可用，创建桌面窗口
         webview.create_window(
-            title="科吉 AI 助手",
+            title="nanobuddy AI 助手",
             url=url,
             width=1280,
             height=860,
@@ -141,7 +141,7 @@ def _log_launch_error(exc: BaseException) -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="科吉 AI 助手")
+    parser = argparse.ArgumentParser(description="NanoBuddy")
     parser.add_argument(
         "--mode",
         choices=["desktop", "web"],

@@ -1,4 +1,4 @@
-"""微信 ↔ 科吉 Agent 桥接路由
+"""微信 ↔ nanobuddy Agent 桥接路由
 
 从微信接收消息 → 调用 CoreAgent 处理 → 回复发回微信
 """
@@ -15,7 +15,7 @@ logger = logging.getLogger("nanobuddy.wechat.bridge")
 
 
 class WeChatBridge:
-    """微信桥接器：将微信消息路由到科吉 Agent"""
+    """微信桥接器：将微信消息路由到 nanobuddy Agent"""
 
     def __init__(self, session_path: str = "data/wechat_session.json"):
         self.client = ILinkClient(session_path=session_path)
@@ -58,7 +58,7 @@ class WeChatBridge:
     # ──── 消息处理 ────
 
     def _get_conv_id(self, wechat_user: str) -> str:
-        """获取或创建科吉对话 ID"""
+        """获取或创建 nanobuddy 对话 ID"""
         if wechat_user not in self._conv_map:
             import uuid
             conv_id = f"wx_{uuid.uuid4().hex[:12]}"
@@ -82,10 +82,10 @@ class WeChatBridge:
         # 发送"正在输入"状态
         self.client.send_typing(msg.from_user)
 
-        # 设置会话 ID，让科吉保持对话上下文
+        # 设置会话 ID，让 nanobuddy 保持对话上下文
         conv_id = self._get_conv_id(msg.from_user)
 
-        # 调用科吉 Agent 处理（非流式，微信不支持流式推送）
+        # 调用 nanobuddy Agent 处理（非流式，微信不支持流式推送）
         try:
             import asyncio
             loop = asyncio.new_event_loop()

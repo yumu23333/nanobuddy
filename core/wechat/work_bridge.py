@@ -1,14 +1,14 @@
-"""企业微信桥接 —— 连接科吉到企业微信自建应用
+"""企业微信桥接 —— 连接 nanobuddy 到企业微信自建应用
 
 架构：
-  企业微信服务器 → HTTP回调/Callback → 科吉FastAPI → CoreAgent处理 → 回复发送
+  企业微信服务器 → HTTP回调/Callback → nanobuddyFastAPI → CoreAgent处理 → 回复发送
                                                                        ↓
                                                           企业微信HTTP API
 
 前置条件：
   1. 企业微信后台创建自建应用，获取 CorpID / AgentID / Secret
-  2. 配置回调URL指向科吉服务器（需要公网可达，或使用frp/ngrok）
-  3. 科吉服务器上运行本桥接
+  2. 配置回调URL指向 nanobuddy 服务器（需要公网可达，或使用frp/ngrok）
+  3. nanobuddy 服务器上运行本桥接
 """
 
 import logging

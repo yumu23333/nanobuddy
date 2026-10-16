@@ -19,7 +19,7 @@ echo [1/3] 安装依赖...
 "venv\Scripts\pip.exe" install -q pyinstaller 2>nul
 
 echo [2/3] 打包应用程序...
-"venv\Scripts\pyinstaller.exe" --onefile --name "科吉AI助手" ^
+"venv\Scripts\pyinstaller.exe" --onefile --name "nanobuddyAI助手" ^
   --add-data "web;web" ^
   --add-data "knowledge;knowledge" ^
   --add-data "config.yaml;." ^
