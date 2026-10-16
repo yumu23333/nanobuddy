@@ -77,7 +77,7 @@ def admin_delete_user(user_id: str, admin: CurrentUser = Depends(require_admin))
         from pathlib import Path
         from core.security.users import user_session_key
 
-        sm = SessionManager(Path(__file__).resolve().parent.parent)
+        sm = SessionManager(Path(__file__).resolve().parent.parent.parent)
         for conv in db.list_conversations(limit=500, owner_user_id=user_id):
             cid = conv["id"]
             sm.delete_session(cid)

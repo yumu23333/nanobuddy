@@ -552,7 +552,7 @@ def _merge_all_nanobuddy_conversations_for_admin(
         from nanobuddy.session.manager import SessionManager
         from pathlib import Path
 
-        sm = SessionManager(Path(__file__).resolve().parent.parent)
+        sm = SessionManager(Path(__file__).resolve().parent.parent.parent)
         users_by_id = {u["id"]: u for u in get_db().list_users()}
         for info in sm.list_sessions():
             key = info.get("key", "")
@@ -592,7 +592,7 @@ def _merge_user_nanobuddy_sessions(convs: list[dict], user: CurrentUser) -> None
         from nanobuddy.session.manager import SessionManager
         from pathlib import Path
 
-        sm = SessionManager(Path(__file__).resolve().parent.parent)
+        sm = SessionManager(Path(__file__).resolve().parent.parent.parent)
         for info in sm.list_sessions():
             key = info.get("key", "")
             if not key.startswith(prefix):
@@ -634,7 +634,7 @@ def _assert_conv_access(conv_id: str, user: CurrentUser) -> None:
         from nanobuddy.session.manager import SessionManager
         from pathlib import Path
 
-        sm = SessionManager(Path(__file__).resolve().parent.parent)
+        sm = SessionManager(Path(__file__).resolve().parent.parent.parent)
         if sm.read_session_file(sk) or sm.read_session_file(conv_id):
             return
     except Exception:
@@ -669,7 +669,7 @@ def get_conversation(conv_id: str, user: CurrentUser = Depends(get_current_user)
         from nanobuddy.session.manager import SessionManager
         from pathlib import Path
 
-        sm = SessionManager(Path(__file__).resolve().parent.parent)
+        sm = SessionManager(Path(__file__).resolve().parent.parent.parent)
         for key in (sk, conv_id):
             data = sm.read_session_file(key)
             if data:
@@ -699,7 +699,7 @@ def delete_conversation(conv_id: str, user: CurrentUser = Depends(get_current_us
         from nanobuddy.session.manager import SessionManager
         from pathlib import Path
 
-        sm = SessionManager(Path(__file__).resolve().parent.parent)
+        sm = SessionManager(Path(__file__).resolve().parent.parent.parent)
         sm.delete_session(conv_id)
         if user.id not in ("anonymous", "localhost", "service"):
             sm.delete_session(user_session_key(user.id, conv_id))
@@ -1462,7 +1462,7 @@ def debug_agent_state(session_id: str = ""):
     try:
         from nanobuddy.session.manager import SessionManager
         from pathlib import Path
-        sm = SessionManager(Path(__file__).resolve().parent.parent)
+        sm = SessionManager(Path(__file__).resolve().parent.parent.parent)
         data = sm.read_session_file(session_id) if session_id else None
         if data:
             msgs = [{"role": m["role"], "content": str(m.get("content", ""))[:500]} for m in data.get("messages", [])]
@@ -1908,7 +1908,7 @@ async def cmd_compact(req: dict):
     from nanobuddy.session.manager import SessionManager
     from core.context_compact import compact_session_new
 
-    sm = SessionManager(Path(__file__).resolve().parent.parent)
+    sm = SessionManager(Path(__file__).resolve().parent.parent.parent)
     adapter = await _get_adapter()
     return await compact_session_new(sm, session_id, adapter.provider)
 
@@ -2103,7 +2103,7 @@ def get_token_stats():
     from nanobuddy.adapter import _make_provider, load_config
     from core.database.db import get_db
     from pathlib import Path
-    sm = SessionManager(Path(__file__).resolve().parent.parent)
+    sm = SessionManager(Path(__file__).resolve().parent.parent.parent)
     db = get_db()
 
     model_name, pricing = _get_model_pricing()
