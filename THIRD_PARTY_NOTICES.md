@@ -13,14 +13,14 @@
 | 项目 | 说明 |
 |------|------|
 | **上游仓库** | https://github.com/HKUDS/nanobot |
-| **许可** | [MIT License](../nanobot/LICENSE) |
+| **许可** | [MIT License](../nanobuddy/LICENSE) |
 | **版权** | Copyright (c) 2025 nanobot contributors |
-| **本仓库位置** | `nanobot/` 目录（含 Agent 运行时、工具、Provider、会话等） |
+| **本仓库位置** | `nanobuddy/` 目录（含 Agent 运行时、工具、Provider、会话等） |
 
 **衍生关系说明：**
-本项目 (nanobuddy) 是基于 **Keji Agent (Copyright 2026 Zuofeng198)** 进行的二次开发，而 Keji Agent 本身是基于 nanobot 构建的。因此，本仓库的 `nanobot/` 目录及其核心逻辑遵循 nanobot 的原始 MIT 许可。
+本项目 (nanobuddy) 是基于 **Keji Agent (Copyright 2026 Zuofeng198)** 进行的二次开发，而 Keji Agent 本身是基于 nanobot 构建的。因此，本仓库的 `nanobuddy/` 目录及其核心逻辑遵循 nanobot 的原始 MIT 许可。
 
-本仓库在 nanobot 及 Keji Agent 的基础上增加了 Web 界面、多用户鉴权、团队工作区、权限控制与企业部署脚本等增强功能。若你分发本仓库，请务必保留 `nanobot/LICENSE` 及本文件中的署名说明。
+本仓库在 nanobot 及 Keji Agent 的基础上增加了 Web 界面、多用户鉴权、团队工作区、权限控制与企业部署脚本等增强功能。若你分发本仓库，请务必保留 `nanobuddy/LICENSE` 及本文件中的署名说明。
 
 ---
 

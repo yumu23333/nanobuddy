@@ -6,8 +6,8 @@ sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 # 2. Test Bus publish/consume
 # 3. Simulate a message event
 
-from nanobot.bus.queue import MessageBus
-from nanobot.bus.events import InboundMessage, OutboundMessage
+from nanobuddy.bus.queue import MessageBus
+from nanobuddy.bus.events import InboundMessage, OutboundMessage
 
 bus = MessageBus()
 
@@ -43,7 +43,7 @@ print(f"domain: {feishu_cfg.get('domain')}")
 
 # Test 3: Import FeishuChannel and check initialization
 print("\n--- Test FeishuChannel init ---")
-from nanobot.channels.feishu import FeishuChannel, FeishuConfig, FEISHU_AVAILABLE
+from nanobuddy.channels.feishu import FeishuChannel, FeishuConfig, FEISHU_AVAILABLE
 print(f"FEISHU_AVAILABLE: {FEISHU_AVAILABLE}")
 
 try:

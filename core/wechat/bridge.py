@@ -8,10 +8,10 @@ import threading
 import time
 from typing import Optional
 
-from nanobot.adapter import KejiAdapter
+from nanobuddy.adapter import NanoBuddyAdapter
 from core.wechat.ilink import ILinkClient, WeChatMessage
 
-logger = logging.getLogger("keji.wechat.bridge")
+logger = logging.getLogger("nanobuddy.wechat.bridge")
 
 
 class WeChatBridge:
@@ -19,8 +19,8 @@ class WeChatBridge:
 
     def __init__(self, session_path: str = "data/wechat_session.json"):
         self.client = ILinkClient(session_path=session_path)
-        self.adapter: Optional[KejiAdapter] = None
-        self._conv_map: dict[str, str] = {}  # wechat_user_id → keji_conv_id
+        self.adapter: Optional[NanoBuddyAdapter] = None
+        self._conv_map: dict[str, str] = {}  # wechat_user_id → nanobuddy_conv_id
 
         # 注册回调
         self.client.set_on_message(self._handle_message)
@@ -36,9 +36,9 @@ class WeChatBridge:
         import asyncio
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        self.adapter = KejiAdapter()
+        self.adapter = NanoBuddyAdapter()
         loop.close()
-        logger.info("KejiAdapter initialized")
+        logger.info("NanoBuddyAdapter initialized")
 
         # 登录
         if not self.client.login():

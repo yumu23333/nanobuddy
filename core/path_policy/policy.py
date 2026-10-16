@@ -179,7 +179,7 @@ def format_allowed_directories_text(
             hint = role_permission_hint(user)
             return f"允许访问的目录（共 {len(roots)} 个）：\n{lines}\n{hint}"
     except Exception as e:
-        logging.getLogger("keji.path_policy").warning("加载用户工作区信息失败: %s", e)
+        logging.getLogger("nanobuddy.path_policy").warning("加载用户工作区信息失败: %s", e)
     if not is_sandbox_enabled(config):
         return "文件沙箱已关闭：可访问本机任意路径（仍受操作系统权限限制）。"
     roots = get_allowed_roots(config, project_root)
@@ -214,19 +214,19 @@ from pathlib import Path as _Path
 
 _SANDBOX_ROOTS = [{", ".join(repr(str(p)) for p in roots)}]
 
-def _keji_under(_p, _root):
+def _nanobuddy_under(_p, _root):
     try:
         _p.resolve().relative_to(_Path(_root).resolve())
         return True
     except ValueError:
         return False
 
-def _keji_guard_path(_file):
+def _nanobuddy_guard_path(_file):
     _p = _Path(_file)
     if not _p.is_absolute():
         _p = _Path({str(project_root)!r}) / _p
     _p = _p.resolve()
-    if not any(_keji_under(_p, _r) for _r in _SANDBOX_ROOTS):
+    if not any(_nanobuddy_under(_p, _r) for _r in _SANDBOX_ROOTS):
         raise PermissionError(
             "路径 " + str(_p) + " 不在允许目录内。允许: " + ", ".join(_SANDBOX_ROOTS)
         )
@@ -237,7 +237,7 @@ def open(file, mode="r", *args, **kwargs):
     if isinstance(file, (str, _Path)):
         _m = mode or "r"
         if any(c in _m for c in "rwa+x"):
-            _keji_guard_path(file)
+            _nanobuddy_guard_path(file)
     return _orig_open(file, mode, *args, **kwargs)
 # --- 沙箱结束 ---
 """

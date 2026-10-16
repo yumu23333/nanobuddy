@@ -24,7 +24,7 @@ try:
 except ImportError:
     HAS_QR = False
 
-logger = logging.getLogger("keji.wechat.ilink")
+logger = logging.getLogger("nanobuddy.wechat.ilink")
 
 # ---------------------------------------------------------------------------
 # 常量

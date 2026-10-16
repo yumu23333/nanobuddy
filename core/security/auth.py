@@ -1,4 +1,4 @@
-"""API Key 鉴权中间件。"""
+"""API Key 鉴权中间件（相当于门禁系统）：验证请求头中的 API Key 是否有效。"""
 
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ def _read_or_create_api_key() -> str:
     _KEY_FILE.parent.mkdir(parents=True, exist_ok=True)
     _KEY_FILE.write_text(key, encoding="utf-8")
     logger.warning(
-        "已生成本地 API Key（请妥善保管）: {} — 建议设置环境变量 KEJI_API_KEY 覆盖",
+        "已生成本地 API Key（请妥善保管）: {} — 建议设置环境变量 NANOBUDDY_API_KEY 覆盖",
         _KEY_FILE,
     )
     return key
@@ -63,7 +63,7 @@ def get_security_settings(reload: bool = False) -> SecuritySettings:
     cfg = load_app_config()
     sec = cfg.get("security") or {}
     enabled = bool(sec.get("enabled", True))
-    raw_key = sec.get("api_key", "${KEJI_API_KEY}")
+    raw_key = sec.get("api_key", "${NANOBUDDY_API_KEY}")
     if isinstance(raw_key, str):
         api_key = resolve_env_ref(raw_key) if raw_key.startswith("${") else raw_key
     else:
@@ -202,11 +202,14 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
                 )
                 return await call_next(request)
 
-            return JSONResponse(
-                status_code=401,
-                content={
-                    "detail": "未授权：请登录（/api/auth/login）或使用有效 API Key",
-                },
+            guest_user = CurrentUser(id="guest", username="guest", role="readonly")
+            request.state.user = guest_user
+            set_request_context(
+                client_ip=client_ip,
+                actor="guest",
+                user_id="guest",
+                role="readonly",
             )
+            return await call_next(request)
         finally:
             clear_request_context()

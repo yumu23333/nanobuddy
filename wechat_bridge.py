@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""科吉 × 微信 Bot — 桥接启动器
+"""nanobuddy × 微信 Bot — 桥接启动器
 
 用法:
     python wechat_bridge.py            # 正常启动
     python wechat_bridge.py --reset    # 清除登录状态，重新扫码
 
 流程:
-    1. 加载/创建科吉 Agent
+    1. 加载/创建nanobuddy
     2. 微信扫码登录（iLink Bot API）
-    3. 开始轮询微信消息 → 调用科吉 → 回复
+    3. 开始轮询微信消息 → 调用nanobuddy → 回复
 """
 
 import sys
@@ -28,7 +28,7 @@ from core.logger import setup_logger
 
 
 def main():
-    parser = argparse.ArgumentParser(description="科吉 × 微信 Bot 桥接")
+    parser = argparse.ArgumentParser(description="nanobuddy × 微信 Bot 桥接")
     parser.add_argument(
         "--reset",
         action="store_true",
@@ -42,7 +42,7 @@ def main():
     args = parser.parse_args()
 
     # 设置日志
-    setup_logger("keji", level="INFO", log_file="logs/wechat.log")
+    setup_logger("nanobuddy", level="INFO", log_file="logs/wechat.log")
 
     # 清除登录状态
     if args.reset:
@@ -55,7 +55,7 @@ def main():
         return
 
     print("=" * 50)
-    print("  科吉 × 微信 Bot")
+    print("  nanobuddy × 微信 Bot")
     print("  企业级 AI 助手 · 微信版")
     print("=" * 50)
     print()
@@ -64,7 +64,7 @@ def main():
 
     try:
         if bridge.start():
-            print("\n✅ 科吉微信 Bot 已启动！")
+            print("\n✅ nanobuddy微信 Bot 已启动！")
             print("  现在可以去微信发消息了。")
             print("  按 Ctrl+C 停止服务\n")
 
@@ -78,7 +78,7 @@ def main():
         print("\n\n正在停止...")
     finally:
         bridge.stop()
-        print("科吉微信 Bot 已停止")
+        print("nanobuddy微信 Bot 已停止")
 
 
 if __name__ == "__main__":

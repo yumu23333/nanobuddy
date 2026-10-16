@@ -79,7 +79,7 @@ def register(req: RegisterRequest):
         from core.path_policy.workspace import ensure_user_dir
         ensure_user_dir(uid)
     except Exception as e:
-        logging.getLogger("keji.routes_auth").warning("创建工作区目录失败 uid=%s: %s", uid, e)
+        logging.getLogger("nanobuddy.routes_auth").warning("创建工作区目录失败 uid=%s: %s", uid, e)
     return {"message": "注册成功", "user_id": uid}
 
 

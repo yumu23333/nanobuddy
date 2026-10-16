@@ -15,7 +15,7 @@ echo.
 if %ERR% neq 0 (
     echo Deploy failed. Code: %ERR%
 ) else (
-    echo Deploy OK. Edit .env then run launch_keji.bat
+    echo Deploy OK. Edit .env then run launch_nanobuddy.bat
 )
 pause
 exit /b %ERR%

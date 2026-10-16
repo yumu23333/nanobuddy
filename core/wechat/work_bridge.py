@@ -20,10 +20,10 @@ from typing import Optional
 from fastapi import APIRouter, Request, Response
 from pydantic import BaseModel
 
-from nanobot.adapter import KejiAdapter
+from nanobuddy.adapter import NanoBuddyAdapter
 from core.wechat.work import WorkClient, WorkConfig, WorkMessage
 
-logger = logging.getLogger("keji.wechat.work_bridge")
+logger = logging.getLogger("nanobuddy.wechat.work_bridge")
 
 # 全局实例
 _bridge: Optional["WorkBridge"] = None
@@ -34,7 +34,7 @@ class WorkBridge:
 
     def __init__(self):
         self.client = WorkClient()
-        self.adapter: Optional[KejiAdapter] = None
+        self.adapter: Optional[NanoBuddyAdapter] = None
         self._conv_map: dict[str, str] = {}
         self._conv_lock = threading.Lock()
 
@@ -63,7 +63,7 @@ class WorkBridge:
         if not self.adapter:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            self.adapter = KejiAdapter()
+            self.adapter = NanoBuddyAdapter()
             loop.close()
 
         logger.info("企微 << %s: %.60s", msg.from_user, msg.content)

@@ -46,7 +46,7 @@ def _read_or_create_jwt_secret() -> str:
     _JWT_SECRET_FILE.write_text(secret, encoding="utf-8")
     _jwt_secret_runtime = secret
     logger.warning(
-        "已生成本地 JWT 密钥: {} — 建议设置 KEJI_JWT_SECRET 或 security.jwt_secret",
+        "已生成本地 JWT 密钥: {} — 建议设置 NANOBUDDY_JWT_SECRET 或 security.jwt_secret",
         _JWT_SECRET_FILE,
     )
     return secret
@@ -55,7 +55,7 @@ def _read_or_create_jwt_secret() -> str:
 def _jwt_settings() -> tuple[str, int]:
     cfg = load_app_config()
     sec = cfg.get("security") or {}
-    raw = sec.get("jwt_secret") or os.environ.get("KEJI_JWT_SECRET") or ""
+    raw = sec.get("jwt_secret") or os.environ.get("NANOBUDDY_JWT_SECRET") or ""
     if isinstance(raw, str) and raw.startswith("${"):
         raw = resolve_env_ref(raw)
     secret = (raw or "").strip() or _read_or_create_jwt_secret()
@@ -103,7 +103,7 @@ def decode_access_token(token: str) -> dict[str, Any] | None:
 
 
 def user_session_key(user_id: str, conversation_id: str) -> str:
-    """nanobot 会话文件键：按用户隔离。"""
+    """nanobuddy 会话文件键：按用户隔离。"""
     return f"user:{user_id}:{conversation_id}"
 
 
@@ -126,7 +126,7 @@ def bootstrap_admin_if_needed() -> None:
     sec = cfg.get("security") or {}
     boot = sec.get("bootstrap_admin") or {}
     username = (boot.get("username") or "admin").strip()
-    raw_pw = boot.get("password") or os.environ.get("KEJI_ADMIN_PASSWORD") or ""
+    raw_pw = boot.get("password") or os.environ.get("NANOBUDDY_ADMIN_PASSWORD") or ""
     if isinstance(raw_pw, str) and raw_pw.startswith("${"):
         raw_pw = resolve_env_ref(raw_pw)
     password = (raw_pw or "").strip()

@@ -1,11 +1,8 @@
 """请求 / 会话上下文（供审计关联 session）。"""
-
 from __future__ import annotations
 
 from contextvars import ContextVar
 from dataclasses import dataclass
-
-
 @dataclass
 class RequestContext:
     session_id: str = ""
@@ -13,11 +10,7 @@ class RequestContext:
     client_ip: str = ""
     user_id: str = ""
     role: str = ""
-
-
-_ctx: ContextVar[RequestContext | None] = ContextVar("keji_request_ctx", default=None)
-
-
+_ctx: ContextVar[RequestContext | None] = ContextVar("nanobuddy_request_ctx", default=None)
 def set_request_context(
     *,
     session_id: str = "",

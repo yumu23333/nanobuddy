@@ -9,7 +9,6 @@ from fastapi import Request
 from core.database.db import get_db
 from core.security.users import CurrentUser, user_session_key
 
-
 def resolve_chat_ids(
     request: Request,
     *,
@@ -17,7 +16,7 @@ def resolve_chat_ids(
     conversation_id: str = "",
 ) -> tuple[str, str, CurrentUser | None]:
     """
-    返回 (nanobot_session_key, conversation_id, user)。
+    返回 (nanobuddy_session_key, conversation_id, user)。
     登录用户：session_key = user:{uid}:{conv_id}，并登记对话归属。
     """
     user: CurrentUser | None = getattr(request.state, "user", None)

@@ -1,4 +1,4 @@
-"""工具结果剪枝（无 LLM），供 nanobot 与 legacy agent 共用。"""
+"""工具结果剪枝（无 LLM），供 nanobuddy 与 legacy agent 共用。"""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ import os
 import re
 
 # 可配置的字符/Token 系数（默认 2.5，适合中英混合）
-# 可通过环境变量 KEJI_CHARS_PER_TOKEN 覆盖，如 export KEJI_CHARS_PER_TOKEN=2
-_CHARS_PER_TOKEN = float(os.environ.get("KEJI_CHARS_PER_TOKEN", "2.5"))
+# 可通过环境变量 NANOBUDDY_CHARS_PER_TOKEN 覆盖，如 export NANOBUDDY_CHARS_PER_TOKEN=2
+_CHARS_PER_TOKEN = float(os.environ.get("NANOBUDDY_CHARS_PER_TOKEN", "2.5"))
 
 # 尾部保留的 Token 预算（与语言无关，目标值）
 _TAIL_TOKEN_BUDGET = 20000

@@ -1,11 +1,11 @@
 """数据库连接与管理工具 — 支持 SQLite / MySQL / PostgreSQL
 
 提供两个入口：
-1. @register_tool 装饰器注册，可通过 CLI 子进程或 nanobot 适配器调用
+1. @register_tool 装饰器注册，可通过 CLI 子进程或 nanobuddy 适配器调用
 2. 直接 import 函数给 SmartQueryService 使用
 
 连接管理策略：
-- nanobot 适配器：内存持久化（推荐）
+- nanobuddy 适配器：内存持久化（推荐）
 - CLI 子进程：JSON 文件持久化到 data/db_connections/
 """
 
@@ -18,7 +18,7 @@ from typing import Optional
 
 from core.logger import setup_logger
 
-logger = setup_logger("keji.db_tools")
+logger = setup_logger("nanobuddy.db_tools")
 
 # 连接持久化目录（CLI 子进程模式）
 _CONN_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "db_connections")

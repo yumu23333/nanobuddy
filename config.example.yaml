@@ -1,18 +1,18 @@
 # 复制为 config.yaml 后配置环境变量（config.yaml 已在 .gitignore 中）
 # cp config.example.yaml config.yaml
-# 参考 .env.example 设置 KEJI_API_KEY、DEEPSEEK_API_KEY 等
+# 参考 .env.example 设置 NANOBUDDY_API_KEY、DEEPSEEK_API_KEY 等
 
 security:
   enabled: true
   auth_mode: both
-  api_key: ${KEJI_API_KEY}
-  jwt_secret: ${KEJI_JWT_SECRET}
+  api_key: ${NANOBUDDY_API_KEY}
+  jwt_secret: ${NANOBUDDY_JWT_SECRET}
   jwt_expire_hours: 72
   allow_localhost_without_auth: false
   public_paths: []
   bootstrap_admin:
     username: admin
-    password: ${KEJI_ADMIN_PASSWORD}
+    password: ${NANOBUDDY_ADMIN_PASSWORD}
     display_name: 系统管理员
   # 全局文件沙箱：内置工具、run_code、网页文件浏览、exec 等均只能访问下方 mcp 允许目录
   filesystem_sandbox: true
@@ -120,7 +120,7 @@ knowledge:
   embedding_model: nomic-embed-text
 
 database:
-  path: data/keji.db
+  path: data/nanobuddy.db
 
 session:
   ttl: 3600

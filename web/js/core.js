@@ -1,87 +1,133 @@
-let currentPage = 'chat';
-let sessionId = '';
-let conversationId = '';
-let isStreaming = false;
-let currentConvId = '';
-let splitConvId = '';
-let isSplitStreaming = false;
-let fbHistory = [];
-let currentReader = null;
-let debugEvents = [];        // 调试事件缓冲
-let debugActiveTab = 'events';
+// ================================================================
+//  core.js — 核心工具与全局状态（优化版）
+//  提供：全局状态管理、认证工具、API 请求、图标系统、弹窗、工具加载等
+// ================================================================
 
-// ── 登录态 / API Key（用户 JWT 优先）──
-window.kejiCurrentUser = null;
-window.kejiAuthReady = false;
+// ---------- 常量与配置 ----------
 
-function getKejiToken() {
-  return localStorage.getItem('keji_token') || '';
+const CONFIG = {
+  SCROLL_THRESHOLD: 120,
+  TOAST_DURATION: 3000,
+  MIN_API_KEY_LENGTH: 8,
+  DEBUG_EVENTS_MAX: 500,
+  TOOL_PANEL_DELAY: 300,
+};
+
+// ---------- 状态管理 ----------
+
+const AppState = {
+  currentPage: 'chat',
+  sessionId: '',
+  conversationId: '',
+  currentConvId: '',
+  splitConvId: '',
+  isStreaming: false,
+  isSplitStreaming: false,
+  currentReader: null,
+  fbHistory: [],
+  debugEvents: [],
+  debugActiveTab: 'events',
+  currentPlan: null,
+  agentMode: localStorage.getItem('nanobuddy_agent_mode') || 'react',
+  _toolsLoaded: false,
+};
+
+// 认证状态（挂载到 window 保持兼容）
+window.nanobuddyCurrentUser = null;
+window.nanobuddyAuthReady = false;
+
+// ---------- DOM 引用缓存 ----------
+
+const DOM = {
+  get statusDot() { return document.getElementById('statusDot'); },
+  get statusText() { return document.getElementById('statusText'); },
+  get toastContainer() { return document.getElementById('toastContainer'); },
+  get toolPanel() { return document.getElementById('toolPanel'); },
+  get toolPanelInner() { return document.getElementById('toolPanelInner'); },
+  get toolMenuBtn() { return document.getElementById('toolMenuBtn'); },
+  get loginOverlay() { return document.getElementById('loginOverlay'); },
+  get loginError() { return document.getElementById('loginError'); },
+};
+
+// ---------- 认证工具 ----------
+
+function getNanobuddyToken() {
+  return localStorage.getItem('nanobuddy_token') || '';
 }
-function setKejiToken(token) {
-  if (token) localStorage.setItem('keji_token', token);
-  else localStorage.removeItem('keji_token');
+
+function setNanobuddyToken(token) {
+  if (token) localStorage.setItem('nanobuddy_token', token);
+  else localStorage.removeItem('nanobuddy_token');
 }
-function getKejiApiKey() {
-  return localStorage.getItem('keji_api_key') || '';
+
+function getNanobuddyApiKey() {
+  return localStorage.getItem('nanobuddy_api_key') || '';
 }
-function setKejiApiKey(key) {
-  if (key) localStorage.setItem('keji_api_key', key);
-  else localStorage.removeItem('keji_api_key');
+
+function setNanobuddyApiKey(key) {
+  if (key) localStorage.setItem('nanobuddy_api_key', key);
+  else localStorage.removeItem('nanobuddy_api_key');
 }
-function kejiAuthHeaders(extra) {
-  var h = {};
+
+function nanobuddyAuthHeaders(extra) {
+  const headers = {};
   if (extra) {
     if (extra instanceof Headers) {
-      extra.forEach(function(v, k) { h[k] = v; });
+      extra.forEach((v, k) => { headers[k] = v; });
     } else if (typeof extra === 'object') {
-      Object.assign(h, extra);
+      Object.assign(headers, extra);
     }
   }
-  var token = getKejiToken();
+
+  const token = getNanobuddyToken();
   if (token) {
-    h['Authorization'] = 'Bearer ' + token;
-  } else {
-    var key = getKejiApiKey();
-    // 勿把未替换的环境变量占位符或空串当作 API Key，否则会一直 401
-    if (key && key.indexOf('${') < 0 && key.length >= 8) {
-      h['Authorization'] = 'Bearer ' + key;
-      h['X-API-Key'] = key;
-    }
+    headers['Authorization'] = 'Bearer ' + token;
+    return headers;
   }
-  return h;
+
+  const key = getNanobuddyApiKey();
+  if (key && !key.includes('${') && key.length >= CONFIG.MIN_API_KEY_LENGTH) {
+    headers['Authorization'] = 'Bearer ' + key;
+    headers['X-API-Key'] = key;
+  }
+  return headers;
 }
-function kejiFetch(url, options) {
-  options = options || {};
-  var headers = kejiAuthHeaders(options.headers);
-  return fetch(url, Object.assign({}, options, { headers: headers })).then(function(res) {
-    if (res.status === 401) {
-      var hadSession = !!window.kejiAuthReady && !window.kejiJustLoggedIn;
-      var isCoreAuth =
-        url.indexOf('/api/auth/me') >= 0 ||
-        url.indexOf('/api/admin/') >= 0;
-      if (hadSession && isCoreAuth) {
-        setKejiToken('');
-        window.kejiAuthReady = false;
-        window.kejiCurrentUser = null;
-        if (typeof showLoginOverlay === 'function') {
-          showLoginOverlay('登录已过期，请重新登录');
-        }
-      } else if (typeof showLoginOverlay === 'function') {
-        var overlay = document.getElementById('loginOverlay');
-        if (overlay && overlay.classList.contains('open')) {
-          var errEl = document.getElementById('loginError');
-          if (errEl && errEl.textContent.indexOf('过期') >= 0) errEl.textContent = '';
+
+async function nanobuddyFetch(url, options = {}) {
+  const headers = nanobuddyAuthHeaders(options.headers);
+  const response = await fetch(url, { ...options, headers });
+
+  // 处理 401 未授权
+  if (response.status === 401) {
+    const hadSession = !!window.nanobuddyAuthReady && !window.nanobuddyJustLoggedIn;
+    const isCoreAuth =
+      url.includes('/api/auth/me') ||
+      url.includes('/api/admin/');
+
+    if (hadSession && isCoreAuth) {
+      setNanobuddyToken('');
+      window.nanobuddyAuthReady = false;
+      window.nanobuddyCurrentUser = null;
+      if (typeof showLoginOverlay === 'function') {
+        showLoginOverlay('登录已过期，请重新登录');
+      }
+    } else if (typeof showLoginOverlay === 'function') {
+      const overlay = DOM.loginOverlay;
+      if (overlay?.classList.contains('open')) {
+        const errEl = DOM.loginError;
+        if (errEl?.textContent?.includes('过期')) {
+          errEl.textContent = '';
         }
       }
     }
-    return res;
-  });
+  }
+  return response;
 }
 
-let agentMode = localStorage.getItem('keji_agent_mode') || 'react';
-let currentPlan = null;
+// ---------- 图标系统 ----------
 
-var _emojiFA = {
+// Emoji → FA 映射
+const EMOJI_FA_MAP = {
   '💬': 'fa-comments', '📚': 'fa-book-open', '📁': 'fa-folder', '⚙️': 'fa-gear',
   '🔧': 'fa-wrench', '📋': 'fa-clock', '➕': 'fa-plus', '📥': 'fa-cloud-arrow-down',
   '⏹': 'fa-stop', '🔍': 'fa-magnifying-glass', '🔄': 'fa-rotate', '💾': 'fa-floppy-disk',
@@ -102,8 +148,8 @@ var _emojiFA = {
   '🔎': 'fa-magnifying-glass', '🛠': 'fa-screwdriver-wrench',
 };
 
-// 工具专属 emoji 图标（供 loadTools 使用）
-var _toolIcons = {
+// 工具名称 → Emoji 图标
+const TOOL_ICON_MAP = {
   get_time: '🕐', calculator: '🔢', read_file: '📄', web_search: '🌐',
   browse_files: '📂', search_files: '🔍', read_document: '📖',
   query_knowledge: '🔎', index_knowledge: '📥', knowledge_stats: '📊',
@@ -122,8 +168,8 @@ var _toolIcons = {
   db_execute_query: '⚡', db_test_connection: '🔗', db_disconnect: '🔌',
 };
 
-// 工具专属 FA 图标
-var _toolFA = {
+// 工具名称 → FA 图标
+const TOOL_FA_MAP = {
   get_time: 'fa-clock', calculator: 'fa-calculator', read_file: 'fa-file-lines',
   web_search: 'fa-globe', browse_files: 'fa-folder-open', search_files: 'fa-search',
   read_document: 'fa-book-open', query_knowledge: 'fa-magnifying-glass',
@@ -144,144 +190,40 @@ var _toolFA = {
   db_execute_query: 'fa-bolt', db_test_connection: 'fa-link', db_disconnect: 'fa-plug-circle-xmark',
 };
 
-// 输出 Font Awesome 图标 HTML
+// 工具分类配置
+const TOOL_CATEGORIES = {
+  utility: { label: '常用工具', fa: 'fa-bolt', bg: '#fff3e0', color: '#e65100', border: '#ffe0b2' },
+  io: { label: '文件读写', fa: 'fa-folder-open', bg: '#e3f2fd', color: '#1565c0', border: '#bbdefb' },
+  web: { label: '网络搜索', fa: 'fa-globe', bg: '#e8f5e9', color: '#2e7d32', border: '#c8e6c9' },
+  filesystem: { label: '文件管理', fa: 'fa-folder', bg: '#f3e5f5', color: '#6a1b9a', border: '#e1bee7' },
+  knowledge: { label: '知识库', fa: 'fa-book-open', bg: '#fce4ec', color: '#c62828', border: '#f8bbd0' },
+  office: { label: '办公文档', fa: 'fa-file-pen', bg: '#e0f7fa', color: '#00695c', border: '#b2ebf2' },
+  data: { label: '数据处理', fa: 'fa-chart-simple', bg: '#eceff1', color: '#37474f', border: '#cfd8dc' },
+  general: { label: '其他', fa: 'fa-wrench', bg: '#f5f5f5', color: '#616161', border: '#e0e0e0' },
+};
+
+const CATEGORY_ORDER = ['utility', 'knowledge', 'office', 'filesystem', 'data', 'io', 'web', 'general'];
+
+// 图标工具函数
 function _dualIcon(emoji, faClass) {
-  if (!faClass) faClass = _emojiFA[emoji] || 'fa-circle';
-  return '<i class="icon-fa fa-solid ' + faClass + '"></i>';
+  const cls = faClass || EMOJI_FA_MAP[emoji] || 'fa-circle';
+  return `<i class="icon-fa fa-solid ${cls}"></i>`;
 }
-// 将文本中的已知 emoji 替换为 FA 图标 HTML
+
 function _replaceEmoji(text) {
   if (!text) return text;
-  var map = { '🔧': 'fa-wrench', '✅': 'fa-circle-check', '❌': 'fa-circle-xmark', '🧠': 'fa-brain', '🤔': 'fa-brain', '🔄': 'fa-rotate' };
-  for (var em in map) {
-    var re = new RegExp(em.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
-    text = text.split(em).join('<i class="fa-solid ' + map[em] + '"></i>');
+  let result = text;
+  for (const [emoji, faClass] of Object.entries(EMOJI_FA_MAP)) {
+    const pattern = new RegExp(emoji.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+    result = result.replace(pattern, `<i class="fa-solid ${faClass}"></i>`);
   }
-  return text;
+  return result;
 }
 
-// 分类中文名
-var _catNames = {
-  utility: { label: '常用工具', fa: 'fa-bolt' },
-  io: { label: '文件读写', fa: 'fa-folder-open' },
-  web: { label: '网络搜索', fa: 'fa-globe' },
-  filesystem: { label: '文件管理', fa: 'fa-folder' },
-  knowledge: { label: '知识库', fa: 'fa-book-open' },
-  office: { label: '办公文档', fa: 'fa-file-pen' },
-  data: { label: '数据处理', fa: 'fa-chart-simple' },
-  general: { label: '其他', fa: 'fa-wrench' },
-};
-
-// 分类配色
-var _catColors = {
-  utility: { bg: '#fff3e0', color: '#e65100', border: '#ffe0b2' },
-  io: { bg: '#e3f2fd', color: '#1565c0', border: '#bbdefb' },
-  web: { bg: '#e8f5e9', color: '#2e7d32', border: '#c8e6c9' },
-  filesystem: { bg: '#f3e5f5', color: '#6a1b9a', border: '#e1bee7' },
-  knowledge: { bg: '#fce4ec', color: '#c62828', border: '#f8bbd0' },
-  office: { bg: '#e0f7fa', color: '#00695c', border: '#b2ebf2' },
-  data: { bg: '#eceff1', color: '#37474f', border: '#cfd8dc' },
-  general: { bg: '#f5f5f5', color: '#616161', border: '#e0e0e0' },
-};
-
-// 加载并分组渲染工具
-function loadTools() {
-  Promise.all([
-    kejiFetch('/tools').then(function(r){return r.json()}),
-    kejiFetch('/api/tools/display').then(function(r){return r.json()})
-  ]).then(function(data) {
-    var toolsData = data[0];
-    var displayData = data[1];
-    var nameMap = displayData.tools || {};
-    var container = document.getElementById('toolPanelInner');
-    if (!container) return;
-
-    if (!toolsData.tools || !toolsData.tools.length) {
-      container.innerHTML = '<div style="padding:10px 0;font-size:13px;color:#999">无可用工具</div>';
-      return;
-    }
-
-    // 按分类分组
-    var groups = {};
-    toolsData.tools.forEach(function(t) {
-      if (!groups[t.category]) groups[t.category] = [];
-      groups[t.category].push(t);
-    });
-
-    var html = '';
-    var catOrder = ['utility','knowledge','office','filesystem','data','io','web','general'];
-    catOrder.forEach(function(cat) {
-      if (!groups[cat]) return;
-      var tools = groups[cat];
-      var c = _catColors[cat] || _catColors.general;
-      var catInfo = _catNames[cat];
-      html += '<div class="tp-category">' + (catInfo ? '<i class="fa-solid ' + catInfo.fa + '"></i> ' + catInfo.label : cat) + '</div>';
-      html += '<div class="tp-tags">';
-      tools.forEach(function(t) {
-        var label = nameMap[t.name] || t.name;
-        var fa = _toolFA[t.name] || 'fa-wrench';
-        html += '<span class="tp-tag" style="background:' + c.bg + ';color:' + c.color + ';border-color:' + c.border + '" title="' + t.name + '"><i class="fa-solid ' + fa + '"></i> ' + label + '</span>';
-      });
-      html += '</div>';
-    });
-
-    container.innerHTML = html;
-  }).catch(function() {
-    var container = document.getElementById('toolPanelInner');
-    if (container) container.innerHTML = '<div style="padding:10px 0;font-size:13px;color:#999">加载失败</div>';
-  });
-}
-
-// 切换工具面板（丝滑动画）
-var _toolsLoaded = false;
-function toggleToolPanel() {
-  var panel = document.getElementById('toolPanel');
-  var btn = document.getElementById('toolMenuBtn');
-  if (!panel) return;
-
-  if (panel.classList.contains('open')) {
-    panel.classList.remove('open');
-    btn.classList.remove('active');
-  } else {
-    if (!_toolsLoaded) { loadTools(); _toolsLoaded = true; }
-    panel.classList.add('open');
-    btn.classList.add('active');
-  }
-}
-
-function checkStatus() {
-  kejiFetch('/api/status').then(r => r.json()).then(d => {
-    const dot = document.getElementById('statusDot');
-    const text = document.getElementById('statusText');
-    if (d.model) {
-      dot.className = 'status-dot online';
-      var label = d.model.type === 'openai' ? 'API' : 'Ollama';
-      text.textContent = label + ' · ' + d.model.name + ' · ' + d.knowledge.documents + ' 文档';
-    } else if (d.ollama && d.ollama.available) {
-      dot.className = 'status-dot online';
-      text.textContent = 'Ollama 已连接 · ' + d.knowledge.documents + ' 文档';
-    } else {
-      dot.className = 'status-dot offline';
-      text.textContent = '未连接';
-    }
-  }).catch(() => {
-    document.getElementById('statusDot').className = 'status-dot offline';
-    document.getElementById('statusText').textContent = '服务器异常';
-  });
-}
-
-// ================================================================
-// 聊天功能
-// ================================================================
-function escHtml(s) {
-  if (!s) return '';
-  const div = document.createElement('div');
-  div.textContent = s;
-  return div.innerHTML;
-}
+// ---------- 文件扩展名 → FA 图标 ----------
 
 function getFileIcon(ext) {
-  var faMap = {
+  const map = {
     '.pdf': 'fa-file-pdf', '.docx': 'fa-file-word', '.doc': 'fa-file-word',
     '.xlsx': 'fa-file-excel', '.xls': 'fa-file-excel',
     '.csv': 'fa-file-csv', '.json': 'fa-file-code', '.yaml': 'fa-file-code', '.yml': 'fa-file-code',
@@ -295,88 +237,301 @@ function getFileIcon(ext) {
     '.exe': 'fa-gear', '.msi': 'fa-gear',
     '.toml': 'fa-gear', '.ini': 'fa-gear', '.cfg': 'fa-gear', '.conf': 'fa-gear',
   };
-  var fa = faMap[ext] || 'fa-file';
-  return '<i class="icon-fa fa-solid ' + fa + '"></i>';
+  const fa = map[ext] || 'fa-file';
+  return `<i class="icon-fa fa-solid ${fa}"></i>`;
+}
+
+// ---------- 文本工具 ----------
+
+function escHtml(str) {
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
 }
 
 function renderMarkdown(text) {
   if (!text) return '';
-  // 代码块
-  text = text.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
-  // 行内代码
-  text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
-  // 粗体
-  text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  // 换行
-  text = text.replace(/\n/g, '<br>');
-  return text;
+  let result = text
+    .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
+  return result;
 }
 
-function toast(msg, type = 'info') {
-  const c = document.getElementById('toastContainer');
-  const t = document.createElement('div');
-  t.className = 'toast toast-' + type;
-  t.textContent = msg;
-  c.appendChild(t);
-  setTimeout(() => t.remove(), 3000);
-}
-
-// ===== 自定义弹窗（替代系统 confirm/alert） =====
-function showConfirm(title, message, onConfirm, onCancel) {
-  var overlay = document.createElement('div'); overlay.className = 'modal-overlay';
-  var card = document.createElement('div'); card.className = 'modal-card';
-  card.innerHTML = '<h3>' + escHtml(title) + '</h3><p>' + escHtml(message) + '</p>' +
-    '<div class="modal-btns"><button class="btn-cancel" id="modalCancel">取消</button><button class="btn-primary" id="modalOk">确定</button></div>';
-  overlay.appendChild(card);
-  document.body.appendChild(overlay);
-
-  var close = function() { overlay.remove(); };
-  overlay.addEventListener('click', function(e) { if (e.target === overlay) close(); });
-  card.querySelector('#modalCancel').onclick = function() { close(); if (onCancel) onCancel(); };
-  card.querySelector('#modalOk').onclick = function() { close(); if (onConfirm) onConfirm(); };
-  // ESC 关闭
-  var onKey = function(e) { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
-  document.addEventListener('keydown', onKey);
-}
-
-function showDangerConfirm(title, message, onConfirm, onCancel) {
-  var overlay = document.createElement('div'); overlay.className = 'modal-overlay';
-  var card = document.createElement('div'); card.className = 'modal-card';
-  card.innerHTML = '<h3>' + escHtml(title) + '</h3><p>' + escHtml(message) + '</p>' +
-    '<div class="modal-btns"><button class="btn-cancel" id="modalCancel">取消</button><button class="btn-danger" id="modalOk">确定删除</button></div>';
-  overlay.appendChild(card);
-  document.body.appendChild(overlay);
-
-  var close = function() { overlay.remove(); };
-  overlay.addEventListener('click', function(e) { if (e.target === overlay) close(); });
-  card.querySelector('#modalCancel').onclick = function() { close(); if (onCancel) onCancel(); };
-  card.querySelector('#modalOk').onclick = function() { close(); if (onConfirm) onConfirm(); };
-  var onKey = function(e) { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
-  document.addEventListener('keydown', onKey);
-}
-
-function showAlert(title, message, onOk) {
-  var overlay = document.createElement('div'); overlay.className = 'modal-overlay';
-  var card = document.createElement('div'); card.className = 'modal-card';
-  card.innerHTML = '<h3>' + escHtml(title) + '</h3><p>' + escHtml(message) + '</p>' +
-    '<div class="modal-btns"><button class="btn-primary" id="modalOk">知道了</button></div>';
-  overlay.appendChild(card);
-  document.body.appendChild(overlay);
-
-  var close = function() { overlay.remove(); if (onOk) onOk(); };
-  overlay.addEventListener('click', function(e) { if (e.target === overlay) close(); });
-  card.querySelector('#modalOk').onclick = close;
-  var onKey = function(e) { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
-  document.addEventListener('keydown', onKey);
-}
-
-// ===== 双图标系统：Emoji ↔ Font Awesome =====
-
-// 智能滚动：用户不在底部时不强制下拉
-function _autoScroll(el, threshold) {
+function autoScroll(el, threshold = CONFIG.SCROLL_THRESHOLD) {
   if (!el) return;
-  threshold = threshold || 120;
   if (el.scrollTop + el.clientHeight >= el.scrollHeight - threshold) {
     el.scrollTop = el.scrollHeight;
   }
 }
+
+// ---------- Toast 通知 ----------
+
+function toast(msg, type = 'info') {
+  const container = DOM.toastContainer;
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.textContent = msg;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), CONFIG.TOAST_DURATION);
+}
+
+// ---------- 模态弹窗 ----------
+
+function createModal(title, message, buttons, options = {}) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+
+  const card = document.createElement('div');
+  card.className = 'modal-card';
+  card.innerHTML = `<h3>${escHtml(title)}</h3><p>${escHtml(message)}</p>`;
+
+  const btnWrapper = document.createElement('div');
+  btnWrapper.className = 'modal-btns';
+
+  buttons.forEach((btn) => {
+    const el = document.createElement('button');
+    el.textContent = btn.label;
+    if (btn.className) el.className = btn.className;
+    el.onclick = () => {
+      overlay.remove();
+      if (btn.action) btn.action();
+    };
+    btnWrapper.appendChild(el);
+  });
+
+  card.appendChild(btnWrapper);
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+
+  // 点击背景关闭（如果有取消按钮）
+  const hasCancel = buttons.some(b => b.isCancel);
+  if (hasCancel) {
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.remove();
+    });
+  }
+
+  // ESC 关闭
+  const onKey = (e) => {
+    if (e.key === 'Escape') {
+      overlay.remove();
+      document.removeEventListener('keydown', onKey);
+    }
+  };
+  document.addEventListener('keydown', onKey);
+}
+
+function showConfirm(title, message, onConfirm, onCancel) {
+  createModal(title, message, [
+    { label: '取消', isCancel: true, action: onCancel },
+    { label: '确定', className: 'btn-primary', action: onConfirm },
+  ]);
+}
+
+function showDangerConfirm(title, message, onConfirm, onCancel) {
+  createModal(title, message, [
+    { label: '取消', isCancel: true, action: onCancel },
+    { label: '确定删除', className: 'btn-danger', action: onConfirm },
+  ]);
+}
+
+function showAlert(title, message, onOk) {
+  createModal(title, message, [
+    { label: '知道了', className: 'btn-primary', action: onOk },
+  ]);
+}
+
+// ---------- 工具面板 ----------
+
+async function loadTools() {
+  const container = DOM.toolPanelInner;
+  if (!container) return;
+
+  try {
+    const [toolsRes, displayRes] = await Promise.all([
+      nanobuddyFetch('/tools').then(r => r.json()),
+      nanobuddyFetch('/api/tools/display').then(r => r.json()),
+    ]);
+
+    const tools = toolsRes.tools || [];
+    const nameMap = displayRes.tools || {};
+
+    if (!tools.length) {
+      container.innerHTML = '<div style="padding:10px 0;font-size:13px;color:#999">无可用工具</div>';
+      return;
+    }
+
+    // 按分类分组
+    const groups = {};
+    tools.forEach(t => {
+      const cat = t.category || 'general';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(t);
+    });
+
+    let html = '';
+    CATEGORY_ORDER.forEach(cat => {
+      const items = groups[cat];
+      if (!items?.length) return;
+      const cfg = TOOL_CATEGORIES[cat] || TOOL_CATEGORIES.general;
+      html += `<div class="tp-category"><i class="fa-solid ${cfg.fa}"></i> ${cfg.label}</div>`;
+      html += '<div class="tp-tags">';
+      items.forEach(t => {
+        const label = nameMap[t.name] || t.name;
+        const fa = TOOL_FA_MAP[t.name] || 'fa-wrench';
+        html += `<span class="tp-tag" style="background:${cfg.bg};color:${cfg.color};border-color:${cfg.border}" title="${t.name}">
+          <i class="fa-solid ${fa}"></i> ${label}
+        </span>`;
+      });
+      html += '</div>';
+    });
+
+    container.innerHTML = html;
+  } catch {
+    if (container) {
+      container.innerHTML = '<div style="padding:10px 0;font-size:13px;color:#999">加载失败</div>';
+    }
+  }
+}
+
+function toggleToolPanel() {
+  const panel = DOM.toolPanel;
+  const btn = DOM.toolMenuBtn;
+  if (!panel) return;
+
+  if (panel.classList.contains('open')) {
+    panel.classList.remove('open');
+    btn?.classList.remove('active');
+  } else {
+    if (!AppState._toolsLoaded) {
+      loadTools();
+      AppState._toolsLoaded = true;
+    }
+    panel.classList.add('open');
+    btn?.classList.add('active');
+  }
+}
+
+// ---------- 状态检查 ----------
+
+async function checkStatus() {
+  try {
+    const res = await nanobuddyFetch('/api/status');
+    const data = await res.json();
+    const dot = DOM.statusDot;
+    const text = DOM.statusText;
+    if (!dot || !text) return;
+
+    if (data.model) {
+      dot.className = 'status-dot online';
+      const label = data.model.type === 'openai' ? 'API' : 'Ollama';
+      text.textContent = `${label} · ${data.model.name} · ${data.knowledge.documents} 文档`;
+    } else if (data.ollama?.available) {
+      dot.className = 'status-dot online';
+      text.textContent = `Ollama 已连接 · ${data.knowledge.documents} 文档`;
+    } else {
+      dot.className = 'status-dot offline';
+      text.textContent = '未连接';
+    }
+  } catch {
+    const dot = DOM.statusDot;
+    const text = DOM.statusText;
+    if (dot) dot.className = 'status-dot offline';
+    if (text) text.textContent = '服务器异常';
+  }
+}
+
+// ---------- 全局变量兼容（保持向后兼容） ----------
+
+// 暴露状态到 window（供其他模块使用）
+Object.defineProperties(window, {
+  currentPage: {
+    get: () => AppState.currentPage,
+    set: (v) => { AppState.currentPage = v; },
+  },
+  sessionId: {
+    get: () => AppState.sessionId,
+    set: (v) => { AppState.sessionId = v; },
+  },
+  conversationId: {
+    get: () => AppState.conversationId,
+    set: (v) => { AppState.conversationId = v; },
+  },
+  currentConvId: {
+    get: () => AppState.currentConvId,
+    set: (v) => { AppState.currentConvId = v; },
+  },
+  splitConvId: {
+    get: () => AppState.splitConvId,
+    set: (v) => { AppState.splitConvId = v; },
+  },
+  isStreaming: {
+    get: () => AppState.isStreaming,
+    set: (v) => { AppState.isStreaming = v; },
+  },
+  isSplitStreaming: {
+    get: () => AppState.isSplitStreaming,
+    set: (v) => { AppState.isSplitStreaming = v; },
+  },
+  fbHistory: {
+    get: () => AppState.fbHistory,
+    set: (v) => { AppState.fbHistory = v; },
+  },
+  currentReader: {
+    get: () => AppState.currentReader,
+    set: (v) => { AppState.currentReader = v; },
+  },
+  debugEvents: {
+    get: () => AppState.debugEvents,
+    set: (v) => { AppState.debugEvents = v; },
+  },
+  debugActiveTab: {
+    get: () => AppState.debugActiveTab,
+    set: (v) => { AppState.debugActiveTab = v; },
+  },
+  currentPlan: {
+    get: () => AppState.currentPlan,
+    set: (v) => { AppState.currentPlan = v; },
+  },
+  agentMode: {
+    get: () => AppState.agentMode,
+    set: (v) => {
+      AppState.agentMode = v;
+      localStorage.setItem('nanobuddy_agent_mode', v);
+    },
+  },
+});
+
+// 暴露函数到 window
+window.getNanobuddyToken = getNanobuddyToken;
+window.setNanobuddyToken = setNanobuddyToken;
+window.getNanobuddyApiKey = getNanobuddyApiKey;
+window.setNanobuddyApiKey = setNanobuddyApiKey;
+window.nanobuddyAuthHeaders = nanobuddyAuthHeaders;
+window.nanobuddyFetch = nanobuddyFetch;
+window.escHtml = escHtml;
+window.getFileIcon = getFileIcon;
+window.renderMarkdown = renderMarkdown;
+window._dualIcon = _dualIcon;
+window._replaceEmoji = _replaceEmoji;
+window.toast = toast;
+window.showConfirm = showConfirm;
+window.showDangerConfirm = showDangerConfirm;
+window.showAlert = showAlert;
+window.loadTools = loadTools;
+window.toggleToolPanel = toggleToolPanel;
+window.checkStatus = checkStatus;
+window._autoScroll = autoScroll;
+
+// ---------- 初始化 ----------
+
+document.addEventListener('DOMContentLoaded', () => {
+  // 初始状态检查
+  checkStatus();
+
+  // 每 60 秒轮询一次状态
+  setInterval(checkStatus, 60000);
+});

@@ -543,13 +543,13 @@ def _format_conv_timestamps(convs: list[dict]) -> None:
             )
 
 
-def _merge_all_nanobot_conversations_for_admin(
+def _merge_all_nanobuddy_conversations_for_admin(
     convs: list[dict],
     owner_filter: str | None = None,
 ) -> None:
-    """管理员：合并所有user:{uid}:{conv} 的 nanobot 会话"""
+    """管理员：合并所有user:{uid}:{conv} 的 nanobuddy 会话"""
     try:
-        from nanobot.session.manager import SessionManager
+        from nanobuddy.session.manager import SessionManager
         from pathlib import Path
 
         sm = SessionManager(Path(__file__).resolve().parent.parent)
@@ -584,12 +584,12 @@ def _merge_all_nanobot_conversations_for_admin(
         pass
 
 
-def _merge_user_nanobot_sessions(convs: list[dict], user: CurrentUser) -> None:
+def _merge_user_nanobuddy_sessions(convs: list[dict], user: CurrentUser) -> None:
     if user.id in ("anonymous", "localhost", "service"):
         return
     prefix = f"user:{user.id}:"
     try:
-        from nanobot.session.manager import SessionManager
+        from nanobuddy.session.manager import SessionManager
         from pathlib import Path
 
         sm = SessionManager(Path(__file__).resolve().parent.parent)
@@ -631,7 +631,7 @@ def _assert_conv_access(conv_id: str, user: CurrentUser) -> None:
         return
     sk = user_session_key(user.id, conv_id)
     try:
-        from nanobot.session.manager import SessionManager
+        from nanobuddy.session.manager import SessionManager
         from pathlib import Path
 
         sm = SessionManager(Path(__file__).resolve().parent.parent)
@@ -651,7 +651,7 @@ def list_conversations(user: CurrentUser = Depends(get_current_user)):
     else:
         convs = db.list_conversations(limit=50, owner_user_id=user.id)
     _format_conv_timestamps(convs)
-    _merge_user_nanobot_sessions(convs, user)
+    _merge_user_nanobuddy_sessions(convs, user)
     return {"conversations": convs}
 
 
@@ -666,7 +666,7 @@ def get_conversation(conv_id: str, user: CurrentUser = Depends(get_current_user)
         return {"conversation": conv, "messages": messages}
     sk = user_session_key(user.id, conv_id)
     try:
-        from nanobot.session.manager import SessionManager
+        from nanobuddy.session.manager import SessionManager
         from pathlib import Path
 
         sm = SessionManager(Path(__file__).resolve().parent.parent)
@@ -685,18 +685,18 @@ def get_conversation(conv_id: str, user: CurrentUser = Depends(get_current_user)
 
 @router.post("/chat/load")
 def load_conversation(conv_id: str, session_id: str = ""):
-    """将已有对话的消息加载到记忆(由前端session_id控制，nanobot自动读取session文件)"""
+    """将已有对话的消息加载到记忆(由前端session_id控制，nanobuddy自动读取session文件)"""
     return {"status": "ok", "message": "会话切换完成"}
 
 
 @router.delete("/conversations/{conv_id}")
 def delete_conversation(conv_id: str, user: CurrentUser = Depends(get_current_user)):
-    """删除对话(数据库 + nanobot session文件)"""
+    """删除对话(数据库 + nanobuddy session文件)"""
     _assert_conv_access(conv_id, user)
     db = get_db()
     db.delete_conversation(conv_id)
     try:
-        from nanobot.session.manager import SessionManager
+        from nanobuddy.session.manager import SessionManager
         from pathlib import Path
 
         sm = SessionManager(Path(__file__).resolve().parent.parent)
@@ -1016,7 +1016,7 @@ def update_settings(req: SettingsUpdate, request: Request):
             yaml.dump(config, f)
 
         try:
-            from nanobot import adapter as _adapter_mod
+            from nanobuddy import adapter as _adapter_mod
             if _adapter_mod.adapter is not None:
                 with open(config_path, "r", encoding="utf-8") as f:
                     _adapter_mod.adapter.config = yaml.load(f) or {}
@@ -1440,7 +1440,7 @@ def system_status(request: Request):
             "chunks": doc_stats["total_chunks"],
             "vectors": vs.count(),
         },
-        "sessions": 0,  # 已迁移至 nanobot.session
+        "sessions": 0,  # 已迁移至 nanobuddy.session
         "version": "1.0.0.1-Beta",
     }
 
@@ -1458,9 +1458,9 @@ def debug_logs(since: float = 0, limit: int = 100):
 
 @router.get("/debug/agent-state")
 def debug_agent_state(session_id: str = ""):
-    """获取指定会话的消息历史(nanobot)"""
+    """获取指定会话的消息历史(nanobuddy)"""
     try:
-        from nanobot.session.manager import SessionManager
+        from nanobuddy.session.manager import SessionManager
         from pathlib import Path
         sm = SessionManager(Path(__file__).resolve().parent.parent)
         data = sm.read_session_file(session_id) if session_id else None
@@ -1479,7 +1479,7 @@ def debug_agent_state(session_id: str = ""):
 def list_mcp_servers():
     """列出已配置的 MCP 服务"""
     try:
-        from nanobot.adapter import get_adapter
+        from nanobuddy.adapter import get_adapter
         import asyncio
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -1494,7 +1494,7 @@ def list_mcp_servers():
 def mcp_status():
     """获取 MCP 连接状态"""
     try:
-        from nanobot.adapter import get_adapter
+        from nanobuddy.adapter import get_adapter
         import asyncio
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -1522,8 +1522,8 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 def _get_cipher() -> Fernet:
     """获取密码加密器(基于机器级密钥)"""
     import hashlib
-    machine_id = hashlib.md5(os.environ.get("COMPUTERNAME", "keji").encode()).hexdigest()
-    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=b"keji-db-pwd", iterations=100000)
+    machine_id = hashlib.md5(os.environ.get("COMPUTERNAME", "nanobuddy").encode()).hexdigest()
+    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=b"nanobuddy-db-pwd", iterations=100000)
     key = base64.urlsafe_b64encode(kdf.derive(machine_id.encode()))
     return Fernet(key)
 
@@ -1789,7 +1789,7 @@ async def smart_query_stream(req: SmartQueryRequest):
 
 
 async def _get_adapter():
-    from nanobot.adapter import get_adapter
+    from nanobuddy.adapter import get_adapter
     return await get_adapter()
 
 
@@ -1818,7 +1818,7 @@ async def cmd_selfcheck():
     """运行系统自检"""
     try:
         adapter = await _get_adapter()
-        from nanobot.selfcheck.runner import SelfCheckRunner
+        from nanobuddy.selfcheck.runner import SelfCheckRunner
         runner = SelfCheckRunner(adapter.tools, adapter.project_root, adapter.config)
         report = runner.run()
         return {"text": report.format_text()}
@@ -1905,7 +1905,7 @@ async def cmd_compact(req: dict):
         return {"text": "错误: 缺少 session_id", "new_session_id": ""}
 
     from pathlib import Path
-    from nanobot.session.manager import SessionManager
+    from nanobuddy.session.manager import SessionManager
     from core.context_compact import compact_session_new
 
     sm = SessionManager(Path(__file__).resolve().parent.parent)
@@ -1994,7 +1994,7 @@ def _assistant_usage_for_stats(
     allow_estimate: bool = True,
 ) -> dict[str, int]:
     """从 assistant 消息读取 usage；仅 allow_estimate 时对缺失项做 tiktoken 估算"""
-    from nanobot.adapter import _ensure_usage
+    from nanobuddy.adapter import _ensure_usage
 
     u = msg.get("usage") or {}
     pt = int(u.get("prompt_tokens", 0) or 0)
@@ -2099,8 +2099,8 @@ def _conv_tokens_from_messages(
 @router.get("/stats/tokens")
 def get_token_stats():
     """聚合所有对话的 token 消耗统计(含费用估算)"""
-    from nanobot.session.manager import SessionManager
-    from nanobot.adapter import _make_provider, load_config
+    from nanobuddy.session.manager import SessionManager
+    from nanobuddy.adapter import _make_provider, load_config
     from core.database.db import get_db
     from pathlib import Path
     sm = SessionManager(Path(__file__).resolve().parent.parent)

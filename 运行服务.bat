@@ -1,5 +1,5 @@
 @echo off
-title Keji Agent Server
+title NanoBuddy Agent Server
 cd /d "%~dp0"
 
 if not exist "venv\Scripts\python.exe" (

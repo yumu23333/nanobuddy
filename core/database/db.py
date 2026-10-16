@@ -549,13 +549,13 @@ class Database:
                 from cryptography.fernet import Fernet
                 from cryptography.hazmat.primitives import hashes
                 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-                machine_id = __import__("hashlib").md5(__import__("os").environ.get("COMPUTERNAME", "keji").encode()).hexdigest()
-                kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=b"keji-db-pwd", iterations=100000)
+                machine_id = __import__("hashlib").md5(__import__("os").environ.get("COMPUTERNAME", "nanobuddy").encode()).hexdigest()
+                kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=b"nanobuddy-db-pwd", iterations=100000)
                 key = base64.urlsafe_b64encode(kdf.derive(machine_id.encode()))
                 config["password"] = Fernet(key).decrypt(pwd_enc.encode()).decode()
             except Exception as e:
                 # 解密失败绝不可把密文当明文返回（否则会静默连库失败且极难排查）
-                logging.getLogger("keji.db").error("数据库密码解密失败（密钥不匹配或数据损坏）: %s", e)
+                logging.getLogger("nanobuddy.db").error("数据库密码解密失败（密钥不匹配或数据损坏）: %s", e)
                 raise ValueError("数据库密码解密失败，请在「数据库配置」中重新保存该连接的密码") from e
         else:
             config["password"] = ""

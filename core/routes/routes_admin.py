@@ -55,7 +55,7 @@ def admin_create_user(req: CreateUserRequest, admin: CurrentUser = Depends(requi
 
         ensure_user_dir(uid)
     except Exception as e:
-        logging.getLogger("keji.routes_admin").warning("创建工作区目录失败 uid=%s: %s", uid, e)
+        logging.getLogger("nanobuddy.routes_admin").warning("创建工作区目录失败 uid=%s: %s", uid, e)
     row = db.get_user_by_id(uid)
     return {"status": "ok", "user": db.user_to_public(row)}
 
@@ -73,7 +73,7 @@ def admin_delete_user(user_id: str, admin: CurrentUser = Depends(require_admin))
         if len(admins) <= 1:
             raise HTTPException(400, "不能删除唯一的管理员账号")
     try:
-        from nanobot.session.manager import SessionManager
+        from nanobuddy.session.manager import SessionManager
         from pathlib import Path
         from core.security.users import user_session_key
 
@@ -120,12 +120,12 @@ def admin_list_all_conversations(
     limit: int = Query(100, ge=1, le=500),
     user_id: str = Query("", description="按用户筛选"),
 ):
-    from core.routes_api import _merge_all_nanobot_conversations_for_admin
+    from core.routes_api import _merge_all_nanobuddy_conversations_for_admin
 
     db = get_db()
     owner = user_id.strip() or None
     convs = db.list_conversations(limit=limit, owner_user_id=owner)
-    _merge_all_nanobot_conversations_for_admin(convs, owner_filter=owner)
+    _merge_all_nanobuddy_conversations_for_admin(convs, owner_filter=owner)
     users_by_id = {u["id"]: u for u in db.list_users()}
     for c in convs:
         c["created_at"] = datetime.datetime.fromtimestamp(c["created_at"]).strftime(

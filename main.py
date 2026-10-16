@@ -1,4 +1,4 @@
-"""科吉 AI 助手 - 基于 nanobot 引擎的 FastAPI 服务"""
+"""nanobuddy AI 助手 - 基于 nanobuddy 引擎的 FastAPI 服务"""
 
 from __future__ import annotations
 
@@ -14,10 +14,10 @@ from fastapi.staticfiles import StaticFiles
 from loguru import logger
 from pydantic import BaseModel, Field
 
-from core.routes import router as api_router
-from core.routes_auth import router as auth_router
-from core.routes_admin import router as admin_router
-from core.routes_security import router as security_router
+from core.routes.routes_api import router as api_router
+from core.routes.routes_auth import router as auth_router
+from core.routes.routes_admin import router as admin_router
+from core.routes.routes_security import router as security_router
 from core.security.auth import APIKeyMiddleware, get_security_settings
 from core.security.context import clear_request_context, set_request_context
 from core.security.users import bootstrap_admin_if_needed
@@ -25,9 +25,9 @@ from core.security.chat_session import resolve_chat_ids
 from core.wechat.work_bridge import router as work_router
 
 async def get_adapter():
-    """全系统共享同一个 KejiAdapter 实例（委托给 nanobot.adapter 模块的单例）"""
-    from nanobot.adapter import get_adapter as _get_nanobot_adapter
-    return await _get_nanobot_adapter()
+    """全系统共享同一个 NanoBuddyAdapter 实例（委托给 nanobuddy.adapter 模块的单例）"""
+    from nanobuddy.adapter import get_adapter as _get_nanobuddy_adapter
+    return await _get_nanobuddy_adapter()
 
 
 @asynccontextmanager
@@ -35,10 +35,10 @@ async def lifespan(app: FastAPI):
     sec = get_security_settings(reload=True)
     bootstrap_admin_if_needed()
     try:
-        from core.workspace import ensure_layout
+        from core.path_policy.workspace import ensure_layout
 
         from core.database.db import get_db
-        from core.workspace import ensure_user_dir
+        from core.path_policy.workspace import ensure_user_dir
 
         ws = ensure_layout()
         for row in get_db().list_users():
@@ -60,7 +60,7 @@ async def lifespan(app: FastAPI):
         try:
             ad = await get_adapter()
             await ad.start_feishu_bridge()
-            logger.info("NanoBuddy启动完成（nanobot 引擎）")
+            logger.info("NanoBuddy启动完成（nanobuddy 引擎）")
         except Exception as e:
             logger.exception("后台引擎初始化失败: {}", e)
 
@@ -262,7 +262,7 @@ async def chat_mode(session_id: str = ""):
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "engine": "nanobot"}
+    return {"status": "healthy", "engine": "nanobuddy"}
 
 
 if __name__ == "__main__":
@@ -274,8 +274,8 @@ if __name__ == "__main__":
         print("NanoBuddy启动中...")
         print("访问地址: http://127.0.0.1:8000")
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-    host = os.environ.get("KEJI_HOST", "0.0.0.0")
-    port = int(os.environ.get("KEJI_PORT", "8000"))
+    host = os.environ.get("NANOBUDDY_HOST", "0.0.0.0")
+    port = int(os.environ.get("NANOBUDDY_PORT", "8000"))
     try:
         print(f"🌐 本机: http://127.0.0.1:{port}  局域网: http://<本机IP>:{port}")
     except UnicodeEncodeError:
