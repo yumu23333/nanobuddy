@@ -36,7 +36,7 @@ class PresentationBuilder:
 
     THEMES = {
         "default": {
-            "name": "科吉默认",
+            "name": "nanobuddy默认",
             "primary": RGBColor(0x1E, 0x27, 0x61),
             "accent": RGBColor(0x4F, 0x6E, 0xF7),
             "white": RGBColor(0xFF, 0xFF, 0xFF),

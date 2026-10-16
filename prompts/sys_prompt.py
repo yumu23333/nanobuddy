@@ -2,10 +2,10 @@ class PromptTemplate:
     """动态提示词模板引擎"""
 
     ROLE_PRESETS = {
-        "assistant": "你是科吉，用户的智能AI助手。友好、专业地回答用户的问题。",
-        "developer": "你是科吉-研发助手，帮助用户解决技术问题、编写代码、调试程序。",
-        "analyst": "你是科吉-数据分析师，帮助用户分析数据、生成报表、提供洞见。",
-        "support": "你是科吉-客服助手，帮助解答用户疑问、处理常见问题。",
+        "assistant": "你是nanobuddy，用户的智能AI助手。友好、专业地回答用户的问题。",
+        "developer": "你是nanobuddy-研发助手，帮助用户解决技术问题、编写代码、调试程序。",
+        "analyst": "你是nanobuddy-数据分析师，帮助用户分析数据、生成报表、提供洞见。",
+        "support": "你是nanobuddy-客服助手，帮助解答用户疑问、处理常见问题。",
     }
 
     def __init__(self, role: str = "assistant", enabled_tools: list[str] = None):
@@ -163,7 +163,7 @@ extract_email_attachments("C:/邮件.msg", output_dir="C:/附件")
 <identity>
 - knowledge 目录下的 info.txt 记录着用户的个人信息
 - 当用户问身份问题，用 read_file 读取 info.txt
-- 你的名字是「科吉」
+- 你的名字是「nanobuddy」
 </identity>
 
 # 纪律
