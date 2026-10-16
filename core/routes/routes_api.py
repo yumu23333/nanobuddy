@@ -739,10 +739,10 @@ _USER_SETTINGS_KEYS = frozenset({
 def get_settings(request: Request):
     """从config.yaml + DB 读取所有设置（优先用户个人设置）"""
     from ruamel.yaml import YAML
-    from core.security.secrets import mask_api_key_for_settings
+    from core.security.secrets import is_env_ref, mask_api_key_for_settings
     from core.mcp.mcp_paths import dirs_for_display, get_mcp_config
 
-    config_path = os.path.join(os.path.dirname(__file__), "..", "config.yaml")
+    config_path = os.path.join(os.path.dirname(__file__), "..", "..", "config.yaml")
     yaml = YAML()
     with open(config_path, "r", encoding="utf-8") as f:
         config = yaml.load(f)
@@ -757,8 +757,13 @@ def get_settings(request: Request):
     if display_type not in ("ollama", "openai"):
         display_type = "openai"
 
+    # 先解析 ${ENV} 引用再判断是否已配置：.env 中没有对应变量时视为未配置，
+    # 前端据此展示「去设置页填写 API Key」的引导（静默解析，避免刷警告日志）
     raw_api_key = str(provider_cfg.get("api_key", "") or "")
-    _, api_configured = mask_api_key_for_settings(raw_api_key)
+    resolved_api_key = raw_api_key
+    if is_env_ref(raw_api_key):
+        resolved_api_key = os.environ.get(raw_api_key.strip()[2:-1], "")
+    _, api_configured = mask_api_key_for_settings(resolved_api_key)
 
     agent_cfg = config.get("agent") or {}
     mcp_cfg = get_mcp_config(config)
@@ -816,6 +821,13 @@ def get_settings(request: Request):
                 mapped[key] = db_settings[user_pref_key]
         user_api_key_key = _user_pref_key(user.id, "openai_api_key")
         if user_api_key_key in db_settings:
+            mapped["openai_api_key_configured"] = True
+    else:
+        # 本机/匿名访问：展示全局设置（设置页填写、存于软件数据库，无需改后端配置）
+        for key in _USER_SETTINGS_KEYS:
+            if key in db_settings:
+                mapped[key] = db_settings[key]
+        if db_settings.get("openai_api_key"):
             mapped["openai_api_key_configured"] = True
 
     for k in ("work_corp_id", "work_agent_id", "work_secret"):
@@ -928,7 +940,7 @@ def update_settings(req: SettingsUpdate, request: Request):
     """保存设置：管理员写入 config.yaml，普通用户写入个人设置"""
     from ruamel.yaml import YAML
 
-    config_path = os.path.join(os.path.dirname(__file__), "..", "config.yaml")
+    config_path = os.path.join(os.path.dirname(__file__), "..", "..", "config.yaml")
 
     config_updates = {}
     db_updates = {}
@@ -965,14 +977,14 @@ def update_settings(req: SettingsUpdate, request: Request):
 
         default_provider = config.get("models", {}).get("default", "openai")
 
-        from core.security.secrets import persist_provider_api_key
-
+        # 页面填写的 API Key 只存入软件自身数据库（管理员/本机存全局，普通用户存个人），
+        # 不再写入后端 .env / config.yaml —— 部署者无需在后端放置密钥，保存后即时生效
         api_key_val = config_updates.pop("openai_api_key", None)
         if api_key_val:
             if is_real_user and not is_admin:
                 db_updates[_user_pref_key(user.id, "openai_api_key")] = str(api_key_val)
             else:
-                persist_provider_api_key(config, default_provider, str(api_key_val))
+                db_updates["openai_api_key"] = str(api_key_val)
 
         mcp_dirs_raw = config_updates.pop("mcp_filesystem_dirs", None)
         mcp_inc_k = config_updates.pop("mcp_include_knowledge", None)
@@ -1029,11 +1041,9 @@ def update_settings(req: SettingsUpdate, request: Request):
             if value is not None:
                 db.set_setting(key, str(value))
 
-    msg = "设置已保存"
+    msg = "设置已保存；API Key / 模型配置已即时生效"
     if mcp_changed:
         msg += "；MCP 文件目录已写入配置，请点击「应用 MCP 目录」或重启服务"
-    else:
-        msg += "；对话压缩等新参数已生效(MCP 变更需应用或重启)"
     return {"status": "ok", "message": msg}
 
 
@@ -1091,12 +1101,14 @@ def test_model_connection(req: TestModelRequest, request: Request):
             
             api_key = req.api_key
             if not api_key:
+                db = get_db()
                 user = getattr(request.state, "user", None)
                 if user and user.id not in ("anonymous", "localhost", "service"):
-                    db = get_db()
-                    db_settings = db.get_all_settings()
-                    api_key = db_settings.get(_user_pref_key(user.id, "openai_api_key"), "")
-            
+                    api_key = db.get_all_settings().get(_user_pref_key(user.id, "openai_api_key"), "")
+                if not api_key:
+                    # 回退到全局 Key（设置页填写、存于软件数据库）
+                    api_key = db.get_setting("openai_api_key", "")
+
             if not api_key:
                 return {"status": "error", "message": "API Key 不能为空"}
             
@@ -1306,7 +1318,7 @@ def get_tools_display():
 
 import shutil
 
-_UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "uploads")
+_UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data", "uploads")
 
 
 @router.post("/upload")
@@ -1406,7 +1418,7 @@ def system_status(request: Request):
     if not model_type:
         try:
             import yaml
-            cfg_path = os.path.join(os.path.dirname(__file__), "..", "config.yaml")
+            cfg_path = os.path.join(os.path.dirname(__file__), "..", "..", "config.yaml")
             with open(cfg_path, "r", encoding="utf-8") as f:
                 cfg = yaml.safe_load(f) or {}
             default_key = cfg.get("models", {}).get("default", "")
@@ -1906,7 +1918,7 @@ async def cmd_compact(req: dict):
 
     from pathlib import Path
     from nanobuddy.session.manager import SessionManager
-    from core.context_compact import compact_session_new
+    from core.context.context_compact import compact_session_new
 
     sm = SessionManager(Path(__file__).resolve().parent.parent.parent)
     adapter = await _get_adapter()
@@ -1941,7 +1953,7 @@ def _get_model_pricing() -> tuple[str, dict[str, float] | None]:
     """从 config.yaml 读取当前模型，返回 (model_name, price_dict_or_None)"""
     import yaml
     try:
-        config_path = os.path.join(os.path.dirname(__file__), "..", "config.yaml")
+        config_path = os.path.join(os.path.dirname(__file__), "..", "..", "config.yaml")
         with open(config_path, "r", encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
     except Exception:

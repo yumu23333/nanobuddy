@@ -6,21 +6,21 @@ import time
 from typing import Generator, Optional
 
 from core.models import ModelRouter
-from core.tools import call_tools_parallel, list_tools
-from core.memory import ConversationMemory, SummaryMemory
+from core.tools.registry_tools import call_tools_parallel, list_tools
+from core.agent.memory import ConversationMemory, SummaryMemory
 from core.logger import setup_logger
 from core.rag.vector_store import get_vector_store
 from core.database.db import get_db
 from prompts.sys_prompt import get_system_prompt, get_json_retry_prompt
 
-logger = setup_logger("keji.agent")
+logger = setup_logger("nanobuddy.agent")
 
 
 # ---------------------------------------------------------------------------
 # Context compression — tool result pruning (no LLM call)
 # ---------------------------------------------------------------------------
 
-from core.context_prune import (  # noqa: E402
+from core.context.context_prune import (  # noqa: E402
     prune_tool_results as _prune_tool_results,
     should_prune_messages as _should_compress,
     summarize_tool_result as _summarize_tool_result,
@@ -57,7 +57,7 @@ MAX_JSON_RETRIES = 2
 # Plan-and-Execute 规划提示词
 # ---------------------------------------------------------------------------
 
-PLANNING_PROMPT = """你是科吉，一个智能任务规划专家。
+PLANNING_PROMPT = """你是nanobuddy，一个充满智慧的智能任务规划专家。
 
 用户会给你一个任务请求。请分析这个任务，并制定一个详细的执行计划。
 
@@ -81,6 +81,15 @@ PLANNING_PROMPT = """你是科吉，一个智能任务规划专家。
 4. 工具名必须是可用工具列表中的
 5. **永远不要输出 steps: []** — 除非用户只是问了一个纯知识问题（比如"什么是AI"）。如果用户要求"做"任何事（创建文档、生成PPT、分析数据、整理文件、搜索信息等），必须调用相关工具
 6. 对于"生成/创建文档/PPT/表格"等任务，必须使用 run_code 工具，在代码中调用 create_presentation / create_document / create_table 等函数完成
+7.以瞎猜接口为耻，以认真查询为荣
+8.以模糊执行为耻，以寻求确认为荣
+9.以臆想业务为耻，以人类确认为荣
+10.以创造接口为耻，以复用现有为荣
+11.以跳过验证为耻，以主动测试为荣
+12.以破坏架构为耻，以遵循规范为荣
+13.以假装理解为耻，以诚实无知为荣
+14.以盲目修改为耻，以谨慎重构为荣
+#编码规则
 """
 
 # 前置强制过滤：命中任意关键词即强制要求调用工具
@@ -106,39 +115,21 @@ def _must_use_tool(query: str) -> bool:
     return False
 
 
+def _user_pref_key(user_id: str, name: str) -> str:
+    return f"user:{user_id}:{name}"
+
 def _load_config() -> dict:
-    config_path = os.path.join(os.path.dirname(__file__), "..", "config.yaml")
+    config_path = os.path.join(os.path.dirname(__file__), "..", "..", "config.yaml")
     with open(config_path, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
-    # 从数据库读取动态模型配置，覆盖 config.yaml
+    # 叠加设置页保存的模型配置（页面填写的 API Key 存于软件自身数据库，
+    # 不写入 .env / config.yaml；.env 中的密钥作为兜底仍然有效）
     try:
-        from core.database.db import get_db
-        db = get_db()
-        model_type = db.get_setting("model_type", "")
-        if model_type in ("ollama", "openai"):
-            config.setdefault("models", {})["default"] = model_type
-            if model_type == "ollama":
-                ollama_cfg = config.setdefault("models", {}).setdefault("ollama", {})
-                url = db.get_setting("ollama_url", "")
-                if url:
-                    ollama_cfg["base_url"] = url
-                model = db.get_setting("chat_model", "")
-                if model:
-                    ollama_cfg["model"] = model
-            elif model_type == "openai":
-                openai_cfg = config.setdefault("models", {}).setdefault("openai", {})
-                url = db.get_setting("openai_base_url", "")
-                if url:
-                    openai_cfg["base_url"] = url
-                key = db.get_setting("openai_api_key", "")
-                if key:
-                    openai_cfg["api_key"] = key
-                model = db.get_setting("openai_model", "")
-                if model:
-                    openai_cfg["model"] = model
+        from core.models.models import apply_model_settings_from_db
+        config = apply_model_settings_from_db(config)
     except Exception:
-        pass
+        logger.warning("叠加数据库模型设置失败，使用 config.yaml 配置", exc_info=True)
 
     return config
 
@@ -286,8 +277,8 @@ def _repair_json(text: str) -> Optional[str]:
 
 
 class CoreAgent:
-    """科吉 Agent 核心引擎 —— ReAct 循环 + 并行工具 + 流式输出 + RAG"""
-
+    """nanobuddy 核心引擎 —— ReAct 循环 + 并行工具 + 流式输出 + RAG"""
+    
     def __init__(self, config: Optional[dict] = None):
         self.config = config or _load_config()
         self.agent_config = self.config.get("agent", {})
@@ -301,7 +292,13 @@ class CoreAgent:
         self.knowledge_top_k = self.agent_config.get("knowledge_top_k", 3)
 
         self.router = ModelRouter(self.config)
-        self.model = self.router.get()
+        # 未配置 API Key 时（如首次使用，用户在设置页填写前）不阻断构造：
+        # 置空并在对话时通过 model 属性延迟解析/报引导错误
+        try:
+            self._model = self.router.get()
+        except ValueError as e:
+            logger.warning("模型适配器暂不可用（%s），等待用户在设置页填写 API Key", e)
+            self._model = None
 
         self.memory = ConversationMemory(max_messages=40)
         self.summary_memory = SummaryMemory(recent_rounds=4)
@@ -310,6 +307,21 @@ class CoreAgent:
         self._pending_decision = None
         self._gatekeeper_force_tool = False  # 前置过滤：是否强制调工具
         self._self_check_retries = 0  # 自检重试计数
+
+    @property
+    def model(self):
+        """延迟解析模型适配器：构造时无 Key 不报错，用户后在设置页填写即生效"""
+        if self._model is None:
+            from core.models.models import apply_model_settings_from_db
+
+            try:
+                self.router = ModelRouter(apply_model_settings_from_db(_load_config()))
+                self._model = self.router.get()
+            except ValueError as e:
+                raise RuntimeError(
+                    "模型未配置：请前往设置页填写 API Key 并保存（保存后立即生效）"
+                ) from e
+        return self._model
 
     def _should_compress(self, messages: list[dict]) -> bool:
         """检查当前消息列表是否需要上下文压缩"""
@@ -586,7 +598,14 @@ class CoreAgent:
                         yield event
                     return
 
-            yield {"phase": "tool_call", "tools": [c["name"] for c in function_calls]}
+            tools_info = []
+            for c in function_calls:
+                tools_info.append({
+                    "name": c["name"],
+                    "intent": c.get("args", {}).get("intent", ""),
+                    "command": c.get("args", {}).get("command", "")
+                })
+            yield {"phase": "tool_call", "tools": [c["name"] for c in function_calls], "tools_info": tools_info}
 
             results = call_tools_parallel(function_calls)
 
@@ -835,10 +854,15 @@ class CoreAgent:
             args = step_data.get("arguments", {})
 
             yield {"phase": "plan_step", "step": step_num, "total": len(steps), "description": desc}
-            yield {"phase": "tool_call", "tools": [tool_name]}
+            tools_info = [{
+                "name": tool_name,
+                "intent": args.get("intent", ""),
+                "command": args.get("command", "")
+            }]
+            yield {"phase": "tool_call", "tools": [tool_name], "tools_info": tools_info}
 
             if tool_name and tool_name in self.enabled_tools:
-                from core.tools import call_tool
+                from core.tools.registry_tools import call_tool
                 logger.info("Plan step %d: calling %s args=%s", step_num, tool_name, str(args)[:200])
                 raw_result = call_tool(tool_name, **args)
             else:
@@ -891,7 +915,7 @@ class CoreAgent:
                 if calls:
                     corrected = True
                     yield {"phase": "plan_correction", "step": step_num, "tool": calls[0]["name"], "reason": "步骤 " + str(step_num) + " 异常，自动修正"}
-                    from core.tools import call_tools_parallel
+                    from core.tools.registry_tools import call_tools_parallel
                     extra_results = call_tools_parallel(calls)
                     for r in extra_results:
                         logger.info("Plan step %d correction: %s -> %s", step_num, r["tool"], r["result"][:150])
@@ -913,7 +937,7 @@ class CoreAgent:
             return
 
         final_system = (
-            "你是科吉，用户的智能AI助手。\n"
+            "你是nanobuddy，用户的智能AI助手。\n"
             "下面列出了已执行完毕的工具及其返回结果。请严格基于这些结果总结回答。\n"
             "纪律：\n"
             "- 只能汇报「执行结果」中已经完成的操作，严禁编造任何未执行的操作\n"
@@ -932,4 +956,8 @@ class CoreAgent:
         logger.info("Plan execute: generating final answer from %d results", len(all_results))
         for token in self.model.chat_stream(final_msgs, temperature=0.5):
             yield {"phase": "answer", "token": token}
-agent = CoreAgent()
+
+
+# 注意：此处原有一个模块级单例 `agent = CoreAgent()`，
+# 会在无 API Key 时（首次使用、用户尚未在设置页填写）导致 import 崩溃，
+# 且无任何调用方使用该全局，故移除；需要时请自行实例化 CoreAgent()。

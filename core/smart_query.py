@@ -25,69 +25,15 @@ def _user_pref_key(user_id: str, name: str) -> str:
     return f"user:{user_id}:{name}"
 
 def _get_model():
-    """获取模型适配器"""
+    """获取模型适配器（页面填写的 API Key 存于软件数据库，优先于 .env）"""
     from core.models import ModelRouter
+    from core.models.models import apply_model_settings_from_db
     import yaml
     config_path = os.path.join(os.path.dirname(__file__), "..", "config.yaml")
     with open(config_path, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
-    # 从数据库读取动态模型配置
-    try:
-        from core.database.db import get_db
-        from core.security.permissions import resolve_current_user
-        
-        db = get_db()
-        user = resolve_current_user()
-        
-        def get_setting(key: str, default: str = "") -> str:
-            if user and user.id not in ("anonymous", "localhost", "service"):
-                user_pref = db.get_setting(_user_pref_key(user.id, key), "")
-                if user_pref:
-                    return user_pref
-            return db.get_setting(key, default)
-
-        model_type = get_setting("model_type", "")
-        api_provider = get_setting("api_provider", "")
-        
-        if model_type in ("ollama", "openai"):
-            config.setdefault("models", {})["default"] = model_type
-            if model_type == "ollama":
-                oc = config.setdefault("models", {}).setdefault("ollama", {})
-                url = get_setting("ollama_url", "")
-                if url:
-                    oc["base_url"] = url
-                m = get_setting("chat_model", "")
-                if m:
-                    oc["model"] = m
-            elif model_type == "openai":
-                provider_map = {
-                    "openai": "openai",
-                    "deepseek": "deepseek",
-                    "anthropic": "anthropic",
-                    "google": "google",
-                    "qwen-cloud": "qwen",
-                    "ernie": "ernie",
-                    "hunyuan": "hunyuan",
-                    "doubao": "doubao",
-                    "xinghuo": "xinghuo",
-                    "huggingface": "huggingface",
-                }
-                provider_key = provider_map.get(api_provider, api_provider)
-                if not provider_key or provider_key == "openai-compat":
-                    provider_key = "openai"
-                
-                oc = config.setdefault("models", {}).setdefault(provider_key, {})
-                url = get_setting("openai_base_url", "")
-                if url:
-                    oc["base_url"] = url
-                key = get_setting("openai_api_key", "")
-                if key:
-                    oc["api_key"] = key
-                m = get_setting("openai_model", "")
-                if m:
-                    oc["model"] = m
-    except Exception:
-        pass
+    # 叠加设置页保存的模型配置（含页面填写的 API Key）
+    config = apply_model_settings_from_db(config)
     router = ModelRouter(config)
     return router.get()
 
@@ -228,7 +174,7 @@ class SmartQueryService:
     def full_query(self, user_query: str, config_id: int) -> dict:
         """执行完整 NL2SQL 查询"""
         from core.database.db import get_db
-        from core.db_tools import db_get_tables_list, db_get_schema_full
+        from core.tools.db_tools import db_get_tables_list, db_get_schema_full
         import uuid
 
         db = get_db()

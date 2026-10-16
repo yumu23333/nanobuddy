@@ -12,7 +12,8 @@ _DEFAULT_REL_DIRS = ("knowledge", "data")
 
 
 def _project_root() -> Path:
-    return Path(__file__).resolve().parent.parent
+    # 本文件位于 core/mcp/ 下，项目根需向上退 3 级
+    return Path(__file__).resolve().parent.parent.parent
 
 
 def get_mcp_config(config: dict) -> dict:

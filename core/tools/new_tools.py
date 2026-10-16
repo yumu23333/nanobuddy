@@ -13,15 +13,15 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
-from core.tools import register_tool
-from core.path_policy import (
+from core.tools.registry_tools import register_tool
+from core.path_policy.policy import (
     check_path,
     default_browse_path,
     list_allowed_directories as _list_allowed_directories,
     run_code_sandbox_preamble,
 )
 
-_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 from core.document.parser import parse_document, is_supported, get_file_metadata
 from core.document.indexer import get_indexer
 from core.rag.vector_store import get_vector_store
@@ -1414,7 +1414,7 @@ def _verify_sheet(ws, sheet_name: str, expect_rows: int,
         },
         "theme": {
             "type": "string",
-            "description": "主题配色: default(科吉蓝) | modern(红) | minimal(青) | dark(暗色) | nature(绿) | warm(暖橙)",
+            "description": "主题配色: default(nanobuddy 蓝) | modern(红) | minimal(青) | dark(暗色) | nature(绿) | warm(暖橙)",
         },
     },
     category="office",
@@ -1428,7 +1428,6 @@ def create_presentation(title: str = "", slides: str = "", save_path: str = "",
 
 
 # ──────────── 工具函数 ────────────
-
 
 def _format_size(size: int) -> str:
     for unit in ["B", "KB", "MB", "GB"]:

@@ -7,7 +7,7 @@ from email import policy
 from email.utils import parsedate_to_datetime
 from typing import Optional
 
-from core.tools import register_tool
+from core.tools.registry_tools import register_tool
 
 
 def _format_size(size: int) -> str:

@@ -7,7 +7,7 @@ import tarfile
 import tempfile
 from typing import Optional
 
-from core.tools import register_tool
+from core.tools.registry_tools import register_tool
 
 
 def _format_size(size: int) -> str:
@@ -20,7 +20,7 @@ def _format_size(size: int) -> str:
 
 def _ensure_output_dir(path: str) -> str:
     """确保输出目录存在，不存在则创建"""
-    from core.path_policy import check_path
+    from core.path_policy.policy import check_path
     path, err = check_path(path)
     if err:
         raise ValueError(err.replace("错误：", ""))
@@ -76,7 +76,7 @@ def _list_tar(tf: tarfile.TarFile) -> str:
     timeout=15,
 )
 def browse_archive(path: str) -> str:
-    from core.path_policy import check_path
+    from core.path_policy.policy import check_path
     path, err = check_path(path, must_exist=True, must_be_file=True)
     if err:
         return err
@@ -179,7 +179,7 @@ def _browse_rar(path: str, size_str: str) -> str:
     timeout=120,
 )
 def extract_archive(path: str, output_dir: str = "", password: str = "") -> str:
-    from core.path_policy import check_path
+    from core.path_policy.policy import check_path
     path, err = check_path(path, must_exist=True, must_be_file=True)
     if err:
         return err
@@ -288,7 +288,7 @@ def create_archive(sources: str, output_path: str = "", format: str = "zip") -> 
     if not source_list:
         return "错误：请至少提供一个要压缩的文件或文件夹路径"
 
-    from core.path_policy import check_path
+    from core.path_policy.policy import check_path
     valid_sources = []
     for s in source_list:
         resolved, err = check_path(s, must_exist=True)
@@ -305,7 +305,7 @@ def _do_create_archive(sources: list, output_path: str, fmt: str) -> str:
         fmt = "zip"
 
     # 自动补齐扩展名
-    from core.path_policy import check_path, default_browse_path
+    from core.path_policy.policy import check_path, default_browse_path
     if not output_path:
         base_dir = default_browse_path()
         ext_map = {"zip": ".zip", "tar.gz": ".tar.gz", "tar.bz2": ".tar.bz2", "7z": ".7z"}

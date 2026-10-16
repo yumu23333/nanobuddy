@@ -8,7 +8,8 @@ from pathlib import Path
 
 from core.security.users import CurrentUser
 
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+# 注意：本文件位于 core/path_policy/ 下（目录重构后加深了一层），项目根需向上退 3 级
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 _WORKSPACE_REL = Path("data") / "workspace"
 _SHARED = "shared"
 _USERS = "users"
@@ -127,6 +128,8 @@ def assert_access(
 
     if user.is_admin:
         allowed = True
+    elif user.id == "guest":
+        allowed = _is_under(resolved, shared_dir())
     else:
         mine = user_dir(user.id)
         allowed = _is_under(resolved, shared_dir()) or _is_under(resolved, mine)
@@ -149,7 +152,8 @@ def assert_access(
 
 def list_roots(user: CurrentUser) -> list[dict]:
     ensure_layout()
-    ensure_user_dir(user.id)
+    if user.id != "guest":
+        ensure_user_dir(user.id)
     roots = [
         {
             "id": "shared",
@@ -158,14 +162,17 @@ def list_roots(user: CurrentUser) -> list[dict]:
             "icon": "shared",
             "can_write": user.role != "readonly",
         },
-        {
-            "id": "mine",
-            "name": "我的文件",
-            "path": str(user_dir(user.id)),
-            "icon": "mine",
-            "can_write": user.role != "readonly",
-        },
     ]
+    if user.id != "guest":
+        roots.append(
+            {
+                "id": "mine",
+                "name": "我的文件",
+                "path": str(user_dir(user.id)),
+                "icon": "mine",
+                "can_write": user.role != "readonly",
+            }
+        )
     if user.is_admin:
         roots.append(
             {
@@ -218,6 +225,8 @@ def check_workspace_path(
     user: CurrentUser | None,
     **kwargs,
 ) -> tuple[str | None, str | None]:
+    if user is None:
+        return None, "错误：需要登录后访问团队文件"
     write = kwargs.pop("write", False)
     try:
         resolved = assert_access(path, user, write=write, **kwargs)

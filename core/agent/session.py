@@ -2,10 +2,10 @@ import uuid
 import time
 import threading
 from typing import Optional
-from core.agent import CoreAgent
+from core.agent.agent_core import CoreAgent
 from core.logger import setup_logger
 
-logger = setup_logger("keji.session")
+logger = setup_logger("nanobuddy.session")
 
 
 class SessionManager:
@@ -24,12 +24,23 @@ class SessionManager:
     def _get_model_tag(self) -> str:
         """获取当前模型配置的标识，用于检测变化"""
         from core.database.db import get_db
+        from core.security.permissions import resolve_current_user
+        
         db = get_db()
-        mt = db.get_setting("model_type", "ollama")
+        user = resolve_current_user()
+        
+        def get_setting(key: str, default: str = "") -> str:
+            if user and user.id not in ("anonymous", "localhost", "service"):
+                user_pref = db.get_setting(f"user:{user.id}:{key}", "")
+                if user_pref:
+                    return user_pref
+            return db.get_setting(key, default)
+        
+        mt = get_setting("model_type", "ollama")
         if mt == "openai":
-            mn = db.get_setting("openai_model", "")
+            mn = get_setting("openai_model", "")
         else:
-            mn = db.get_setting("chat_model", "qwen2.5:7b")
+            mn = get_setting("chat_model", "qwen2.5:7b")
         return f"{mt}:{mn}"
 
     def get_or_create(self, session_id: Optional[str] = None) -> tuple[str, CoreAgent]:

@@ -120,7 +120,7 @@ def admin_list_all_conversations(
     limit: int = Query(100, ge=1, le=500),
     user_id: str = Query("", description="按用户筛选"),
 ):
-    from core.routes_api import _merge_all_nanobuddy_conversations_for_admin
+    from core.routes.routes_api import _merge_all_nanobuddy_conversations_for_admin
 
     db = get_db()
     owner = user_id.strip() or None
@@ -146,6 +146,6 @@ def admin_get_conversation(
     conv_id: str,
     _admin: CurrentUser = Depends(require_admin),
 ):
-    from core.routes_api import get_conversation
+    from core.routes.routes_api import get_conversation
 
     return get_conversation(conv_id, _admin)

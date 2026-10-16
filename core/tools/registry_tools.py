@@ -13,9 +13,9 @@ import requests
 from core.logger import setup_logger
 
 # CLI 调度器路径
-_CLI_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "cli.py"))
+_CLI_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "cli.py"))
 
-logger = setup_logger("keji.tools")
+logger = setup_logger("nanobuddy.tools")
 
 # 工具注册表
 _tool_registry: dict[str, dict] = {}
@@ -293,7 +293,7 @@ def read_file(filename: str = "", path: str = "", file_path: str = "", filepath:
     else:
         # 回退到 knowledge 目录
         base_dir = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "knowledge")
+            os.path.join(os.path.dirname(__file__), "..", "..", "knowledge")
         )
         file_path = os.path.abspath(os.path.join(base_dir, filename))
 
@@ -321,7 +321,7 @@ def read_file(filename: str = "", path: str = "", file_path: str = "", filepath:
 )
 def web_search(query: str, max_results: int = 3) -> str:
     url = f"https://html.duckduckgo.com/html/?q={query}"
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) KejiAgent/1.0"}
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NanobuddyAgent/1.0"}
     try:
         resp = requests.get(url, headers=headers, timeout=15)
         resp.raise_for_status()
@@ -359,11 +359,11 @@ def web_search(query: str, max_results: int = 3) -> str:
 
 
 # 导入扩展工具（触发装饰器注册）
-from core import new_tools  # noqa: F401
+from core.tools import new_tools  # noqa: F401
 
 # 导入新工具模块 — 仅用于触发装饰器注册
-from core import archive_tools  # noqa: F401
-from core import ocr_tools  # noqa: F401
-from core import email_tools  # noqa: F401
-from core import filetools_organize  # noqa: F401
-from core import db_tools  # noqa: F401
+from core.tools import archive_tools  # noqa: F401
+from core.tools import ocr_tools  # noqa: F401
+from core.tools import email_tools  # noqa: F401
+from core.tools import filetools_organize  # noqa: F401
+from core.tools import db_tools  # noqa: F401

@@ -25,7 +25,7 @@ logging.getLogger('nanobuddy').setLevel(logging.ERROR)
 # 确保项目根目录在 sys.path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from core.tools_registry import _tool_registry  # noqa: E402
+from core.tools.registry_tools import _tool_registry  # noqa: E402
 
 
 def main():

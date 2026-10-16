@@ -1,7 +1,7 @@
 from collections import deque
 from core.logger import setup_logger
 
-logger = setup_logger("keji.memory")
+logger = setup_logger("nanobuddy.memory")
 
 
 class ConversationMemory:

@@ -4,7 +4,7 @@ import os
 import tempfile
 from typing import Optional
 
-from core.tools import register_tool
+from core.tools.registry_tools import register_tool
 
 
 def _get_ocr_engine():
@@ -115,7 +115,7 @@ def ocr_image(path: str = "", image_path: str = "", lang: str = "ch_sim+eng") ->
         path = image_path
     if not path:
         return "错误：请提供图片路径（参数名 path 或 image_path）"
-    from core.path_policy import check_path
+    from core.path_policy.policy import check_path
     path, err = check_path(path, must_exist=True, must_be_file=True)
     if err:
         return err
@@ -181,7 +181,7 @@ def ocr_pdf(path: str = "", image_path: str = "", lang: str = "ch_sim+eng", page
         path = image_path
     if not path:
         return "错误：请提供 PDF 路径（参数名 path 或 image_path）"
-    from core.path_policy import check_path
+    from core.path_policy.policy import check_path
     path, err = check_path(path, must_exist=True, must_be_file=True)
     if err:
         return err
