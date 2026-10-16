@@ -18,8 +18,11 @@ from typing import Optional
 
 from core.logger import setup_logger
 
-logger = setup_logger("keji.smart_query")
+logger = setup_logger("nanobuddy.smart_query")
 
+
+def _user_pref_key(user_id: str, name: str) -> str:
+    return f"user:{user_id}:{name}"
 
 def _get_model():
     """获取模型适配器"""
@@ -31,27 +34,56 @@ def _get_model():
     # 从数据库读取动态模型配置
     try:
         from core.database.db import get_db
+        from core.security.permissions import resolve_current_user
+        
         db = get_db()
-        model_type = db.get_setting("model_type", "")
+        user = resolve_current_user()
+        
+        def get_setting(key: str, default: str = "") -> str:
+            if user and user.id not in ("anonymous", "localhost", "service"):
+                user_pref = db.get_setting(_user_pref_key(user.id, key), "")
+                if user_pref:
+                    return user_pref
+            return db.get_setting(key, default)
+
+        model_type = get_setting("model_type", "")
+        api_provider = get_setting("api_provider", "")
+        
         if model_type in ("ollama", "openai"):
             config.setdefault("models", {})["default"] = model_type
             if model_type == "ollama":
                 oc = config.setdefault("models", {}).setdefault("ollama", {})
-                url = db.get_setting("ollama_url", "")
+                url = get_setting("ollama_url", "")
                 if url:
                     oc["base_url"] = url
-                m = db.get_setting("chat_model", "")
+                m = get_setting("chat_model", "")
                 if m:
                     oc["model"] = m
             elif model_type == "openai":
-                oc = config.setdefault("models", {}).setdefault("openai", {})
-                url = db.get_setting("openai_base_url", "")
+                provider_map = {
+                    "openai": "openai",
+                    "deepseek": "deepseek",
+                    "anthropic": "anthropic",
+                    "google": "google",
+                    "qwen-cloud": "qwen",
+                    "ernie": "ernie",
+                    "hunyuan": "hunyuan",
+                    "doubao": "doubao",
+                    "xinghuo": "xinghuo",
+                    "huggingface": "huggingface",
+                }
+                provider_key = provider_map.get(api_provider, api_provider)
+                if not provider_key or provider_key == "openai-compat":
+                    provider_key = "openai"
+                
+                oc = config.setdefault("models", {}).setdefault(provider_key, {})
+                url = get_setting("openai_base_url", "")
                 if url:
                     oc["base_url"] = url
-                key = db.get_setting("openai_api_key", "")
+                key = get_setting("openai_api_key", "")
                 if key:
                     oc["api_key"] = key
-                m = db.get_setting("openai_model", "")
+                m = get_setting("openai_model", "")
                 if m:
                     oc["model"] = m
     except Exception:
@@ -129,12 +161,15 @@ class SmartQueryService:
             logger.warning(f"Select tables failed: {e}")
             return [table_metas[0]["table_name"]]
 
-    def generate_sql(self, user_query: str, table_metas: list[dict]) -> str:
+    def generate_sql(self, user_query: str, table_metas: list[dict], db_type: str = "") -> str:
         """LLM 根据表结构生成 SQL"""
         self._ensure_model()
         schema_text = _build_schema_text(table_metas)
 
+        dialect_hint = db_type or "通用"
         prompt = f"""你是一个 SQL 专家。请根据表结构和用户问题，生成对应的 SQL 查询语句。
+
+数据库类型: {dialect_hint}
 
 表结构:
 {schema_text}
@@ -145,7 +180,7 @@ class SmartQueryService:
 1. 只输出 SQL 语句，不要任何解释
 2. 如果需要关联多表，使用合适的 JOIN
 3. 字段来源明确，必要时使用表名前缀
-4. 使用标准的 SQL 语法（兼容 MySQL 和 PostgreSQL 通用语法）
+4. 使用 {dialect_hint} 兼容的 SQL 语法
 5. 不要包含 ```sql 代码块标记"""
 
         try:
@@ -220,12 +255,18 @@ class SmartQueryService:
                 from core.db_tools import _create_connection
                 conn = _create_connection(conn_config)
                 cursor = conn.cursor()
-                db_type = config["db_type"]
+                db_type = config["db_type"].lower()
                 try:
                     if db_type == "mysql":
                         cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()")
-                    else:
+                    elif db_type == "postgresql":
                         cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
+                    elif db_type == "sqlserver":
+                        cursor.execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES")
+                    elif db_type == "sqlite":
+                        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+                    else:
+                        cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()")
                     all_tables = [r[0] for r in cursor.fetchall()]
                 finally:
                     cursor.close()
@@ -237,9 +278,18 @@ class SmartQueryService:
                         if db_type == "mysql":
                             from core.db_tools import _mysql_describe_table
                             schema = _mysql_describe_table(conn2, tn)
-                        else:
+                        elif db_type == "postgresql":
                             from core.db_tools import _pg_describe_table
                             schema = _pg_describe_table(conn2, tn)
+                        elif db_type == "sqlserver":
+                            from core.db_tools import _mssql_describe_table
+                            schema = _mssql_describe_table(conn2, tn)
+                        elif db_type == "sqlite":
+                            from core.db_tools import _sqlite_describe_table
+                            schema = _sqlite_describe_table(conn2, tn)
+                        else:
+                            from core.db_tools import _mysql_describe_table
+                            schema = _mysql_describe_table(conn2, tn)
                     finally:
                         conn2.close()
 
@@ -263,7 +313,7 @@ class SmartQueryService:
         target_metas = [m for m in table_metas if m["table_name"] in target_tables]
 
         # 3. LLM 生成 SQL
-        sql = self.generate_sql(user_query, target_metas)
+        sql = self.generate_sql(user_query, target_metas, config["db_type"])
 
         # 4. 执行 SQL
         try:
@@ -271,10 +321,13 @@ class SmartQueryService:
             conn = _create_connection(conn_config)
             cursor = conn.cursor()
             try:
-                # 自动加 LIMIT 保护
+                # 自动加 LIMIT/TOP 保护
                 final_sql = sql
-                if "LIMIT" not in final_sql.upper() and final_sql.strip().upper().startswith("SELECT"):
-                    final_sql = final_sql.rstrip(";") + " LIMIT 200"
+                if "LIMIT" not in final_sql.upper() and "TOP" not in final_sql.upper() and final_sql.strip().upper().startswith("SELECT"):
+                    if config["db_type"].lower() == "sqlserver":
+                        final_sql = final_sql.replace("SELECT", "SELECT TOP 200", 1)
+                    else:
+                        final_sql = final_sql.rstrip(";") + " LIMIT 200"
 
                 cursor.execute(final_sql)
                 if cursor.description:
@@ -384,7 +437,7 @@ class SmartQueryService:
             # LLM 生成SQL
             target_metas = [m for m in table_metas if m["table_name"] in target_tables]
             yield emit("generate_sql", "running", "正在根据表结构生成 SQL...")
-            sql = self.generate_sql(user_query, target_metas)
+            sql = self.generate_sql(user_query, target_metas, config["db_type"])
             yield emit("generate_sql", "completed", "SQL 生成成功", {"sql": sql})
 
             # 执行SQL
@@ -393,8 +446,11 @@ class SmartQueryService:
             cursor = conn.cursor()
             try:
                 final_sql = sql
-                if "LIMIT" not in final_sql.upper() and final_sql.strip().upper().startswith("SELECT"):
-                    final_sql = final_sql.rstrip(";") + " LIMIT 200"
+                if "LIMIT" not in final_sql.upper() and "TOP" not in final_sql.upper() and final_sql.strip().upper().startswith("SELECT"):
+                    if config["db_type"].lower() == "sqlserver":
+                        final_sql = final_sql.replace("SELECT", "SELECT TOP 200", 1)
+                    else:
+                        final_sql = final_sql.rstrip(";") + " LIMIT 200"
                 cursor.execute(final_sql)
                 if cursor.description:
                     columns = [desc[0] for desc in cursor.description]

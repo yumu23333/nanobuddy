@@ -145,9 +145,9 @@ def bootstrap_admin_if_needed() -> None:
         display_name=display,
     )
     try:
-        from core.workspace import ensure_user_dir
+        from core.path_policy.workspace import ensure_user_dir
 
         ensure_user_dir(uid)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("创建工作区目录失败 uid=%s: %s", uid, e)
     logger.info("已初始化管理员账号: {} (id={})", username, uid)

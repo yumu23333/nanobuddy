@@ -43,7 +43,7 @@ def get_db() -> "Database":
         with _db_lock:
             if _db_instance is None:
                 db_path = os.path.join(
-                    os.path.dirname(__file__), "..", "..", "data", "keji.db"
+                    os.path.dirname(__file__), "..", "..", "data", "nanobuddy.db"
                 )
                 _db_instance = Database(db_path)
     return _db_instance
@@ -97,7 +97,8 @@ class Database:
                 chunk_count INTEGER DEFAULT 0,
                 indexed_at REAL,
                 created_at REAL NOT NULL,
-                last_accessed_at REAL
+                last_accessed_at REAL,
+                mtime REAL
             );
 
             CREATE TABLE IF NOT EXISTS settings (
@@ -203,6 +204,11 @@ class Database:
                 "CREATE INDEX IF NOT EXISTS idx_conv_owner "
                 "ON conversations(owner_user_id, updated_at)"
             )
+            conn.commit()
+        # documents 表的 mtime 列（用于索引增量跳过），旧库需补齐
+        doc_cols = {r[1] for r in conn.execute("PRAGMA table_info(documents)").fetchall()}
+        if "mtime" not in doc_cols:
+            conn.execute("ALTER TABLE documents ADD COLUMN mtime REAL")
             conn.commit()
 
     # ---- 用户管理 ----
@@ -437,6 +443,7 @@ class Database:
         doc_category: str = "other",
         content_hash: str = "",
         chunk_count: int = 0,
+        mtime: float = 0.0,
     ) -> bool:
         now = time.time()
         conn = self._get_conn()
@@ -444,11 +451,11 @@ class Database:
             conn.execute(
                 """INSERT OR REPLACE INTO documents
                    (id, file_path, file_name, file_type, file_size, doc_category,
-                    content_hash, chunk_count, indexed_at, created_at, last_accessed_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    content_hash, chunk_count, indexed_at, created_at, last_accessed_at, mtime)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     doc_id, file_path, file_name, file_type, file_size,
-                    doc_category, content_hash, chunk_count, now, now, now,
+                    doc_category, content_hash, chunk_count, now, now, now, mtime,
                 ),
             )
             conn.commit()
@@ -546,8 +553,10 @@ class Database:
                 kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=b"keji-db-pwd", iterations=100000)
                 key = base64.urlsafe_b64encode(kdf.derive(machine_id.encode()))
                 config["password"] = Fernet(key).decrypt(pwd_enc.encode()).decode()
-            except Exception:
-                config["password"] = pwd_enc
+            except Exception as e:
+                # 解密失败绝不可把密文当明文返回（否则会静默连库失败且极难排查）
+                logging.getLogger("keji.db").error("数据库密码解密失败（密钥不匹配或数据损坏）: %s", e)
+                raise ValueError("数据库密码解密失败，请在「数据库配置」中重新保存该连接的密码") from e
         else:
             config["password"] = ""
         config.pop("password_encrypted", None)
