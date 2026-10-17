@@ -60,6 +60,9 @@ function loadAllConfigs() {
   // 模型设置
   loadModelSettings();
 
+  // MCP 服务状态
+  loadMcpStatus();
+
   // 模式设置
   loadAgentMode();
   updateModeUI(agentMode);

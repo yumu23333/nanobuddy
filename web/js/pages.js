@@ -938,6 +938,7 @@ function applyMcpReloadResponse(d) {
     hint.textContent = d.filesystem_dirs.join(' · ');
   }
   toast(d.message || 'MCP 已重新连接', 'success');
+  loadMcpStatus();
 }
 
 async function reloadMcpFilesystem() {
@@ -962,6 +963,35 @@ async function reloadMcpFilesystem() {
     }
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = prevText || '应用 MCP 目录（无需重启）'; }
+  }
+}
+
+
+// ---- MCP 服务状态 ----
+async function loadMcpStatus() {
+  const box = document.getElementById('mcpStatusList');
+  if (!box) return;
+  box.textContent = '加载中…';
+  try {
+    const d = await nanobuddyFetch('/api/mcp/status').then(r => r.json());
+    const servers = d.servers || [];
+    if (!servers.length) {
+      box.textContent = d.error ? ('获取失败: ' + d.error) : '未配置 MCP 服务（config.yaml → mcp_servers）';
+      return;
+    }
+    const esc = s => String(s).replace(/[&<>"']/g, c => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
+    box.innerHTML = servers.map(s => {
+      const dot = s.connected
+        ? '<span style="color:#27ae60">●</span> 已连接'
+        : '<span style="color:#e74c3c">●</span> 未连接';
+      const tools = s.connected ? (s.tools + ' 个工具') : '—';
+      return '<div style="display:flex;justify-content:space-between;padding:2px 0">'
+        + '<span>' + esc(s.name) + '</span><span>' + dot + ' · ' + tools + '</span></div>';
+    }).join('');
+  } catch (e) {
+    box.textContent = '获取失败: ' + (e.message || e);
   }
 }
 
@@ -1902,6 +1932,7 @@ window.loadSecurityStatus = loadSecurityStatus;
 window.loadAuditLogs = loadAuditLogs;
 window.loadModelSettings = loadModelSettings;
 window.reloadMcpFilesystem = reloadMcpFilesystem;
+window.loadMcpStatus = loadMcpStatus;
 window.testModelConn = testModelConn;
 window.saveSettings = saveSettings;
 window.loadWorkConfig = loadWorkConfig;

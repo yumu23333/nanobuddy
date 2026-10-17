@@ -1507,7 +1507,7 @@ def list_mcp_servers():
 
 @router.get("/mcp/status")
 def mcp_status():
-    """获取 MCP 连接状态"""
+    """获取 MCP 连接状态（含各服务已注册工具数）"""
     try:
         from nanobuddy.adapter import get_adapter
         import asyncio
@@ -1515,10 +1515,20 @@ def mcp_status():
         asyncio.set_event_loop(loop)
         adapter = loop.run_until_complete(get_adapter())
         loop.close()
-        stacks = adapter._mcp_stacks if hasattr(adapter, '_mcp_stacks') else {}
-        return {"connected": list(stacks.keys()) if stacks else []}
+        stacks = getattr(adapter, "_mcp_stacks", {}) or {}
+        tools_dict = getattr(getattr(adapter, "tools", None), "_tools", {}) or {}
+        servers = []
+        for cfg in adapter.get_mcp_servers_config() or []:
+            name = cfg.get("name", "")
+            prefix = f"mcp_{name}_"
+            servers.append({
+                "name": name,
+                "connected": name in stacks,
+                "tools": sum(1 for t in tools_dict if str(t).startswith(prefix)),
+            })
+        return {"connected": list(stacks.keys()), "servers": servers}
     except Exception as e:
-        return {"connected": [], "error": str(e)[:200]}
+        return {"connected": [], "servers": [], "error": str(e)[:200]}
 
 
 @router.post("/mcp/servers")

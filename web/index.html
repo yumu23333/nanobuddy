@@ -854,6 +854,22 @@
 
         <article class="settings-group">
           <h3>
+            <i class="icon-fa fa-solid fa-plug" style="margin-right:4px"></i> MCP 服务状态
+          </h3>
+          <div class="settings-row" style="align-items:flex-start">
+            <div>
+              <label>连接情况</label>
+              <div class="desc">config.yaml 中 mcp_servers 配置的各服务连通性与已注册工具数；未连接的服务其工具在对话中不可用</div>
+            </div>
+            <div id="mcpStatusList" style="flex:1;max-width:480px;font-size:12px;color:var(--text-muted)">加载中…</div>
+          </div>
+          <div style="padding:8px 0 12px;text-align:center">
+            <button class="btn btn-secondary" type="button" onclick="loadMcpStatus()">刷新状态</button>
+          </div>
+        </article>
+
+        <article class="settings-group">
+          <h3>
             <i class="icon-fa fa-solid fa-bullseye" style="margin-right:4px"></i> 显示选项
           </h3>
           <div class="settings-row">
