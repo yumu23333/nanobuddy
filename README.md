@@ -98,6 +98,8 @@ git lfs pull
 
 脚本会自动：创建 `venv`、从本地 wheel 安装依赖、生成 `config.yaml` / `.env`、创建数据目录。
 
+> **可选**：OCR 图片文字识别需额外安装 `pip install -r requirements-ocr.txt`（含 torch，约数百 MB；无 NVIDIA GPU 会自动使用 CPU 版）。不装则 OCR 工具自动禁用，其余功能不受影响。
+
 
 
 ### 第 3 步：填写密钥

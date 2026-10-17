@@ -1,0 +1,5 @@
+# 可选：PyInstaller 打包链（scripts/package_offline.ps1 使用）
+altgraph==0.17.5
+pefile==2024.8.26
+pyinstaller-hooks-contrib==2026.4
+pyinstaller==6.20.0

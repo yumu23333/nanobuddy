@@ -1,0 +1,18 @@
+# 可选：OCR 图片文字识别（core/tools/ocr_tools.py 的 easyocr 引擎）
+# 不安装本组依赖时 OCR 工具自动禁用，其余功能不受影响
+# 本机无 NVIDIA GPU 时 torch 用 CPU 版（约 200MB，CUDA 版约 5GB+）：
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+#   pip install -r requirements-ocr.txt
+ImageIO==2.37.3
+lazy-loader==0.5
+networkx==3.4.2
+ninja==1.13.0
+opencv-python-headless==4.13.0.92
+pyclipper==1.4.0
+python-bidi==0.6.7
+scikit-image==0.25.2
+shapely==2.1.2
+tifffile==2025.5.10
+torch==2.11.0
+torchvision==0.26.0
+easyocr==1.7.2
