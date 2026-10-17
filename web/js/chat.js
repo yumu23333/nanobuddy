@@ -1176,6 +1176,10 @@ function switchPage(page) {
     database: () => { loadDbConfigs(); loadDbConfigSelect(); },
     stats: () => setTimeout(loadStats, 50),
     tools: () => setTimeout(loadToolPage, 50),
+    cron: () => setTimeout(() => {
+      if (typeof loadCronJobs === 'function') loadCronJobs();
+      if (typeof onCronKindChange === 'function') onCronKindChange();
+    }, 50),
     chat: () => setTimeout(checkApiKeyBanner, 50),
     settings: () => setTimeout(() => {
       if (typeof loadModelSettings === 'function') loadModelSettings();

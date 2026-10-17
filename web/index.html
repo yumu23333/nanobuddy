@@ -71,6 +71,7 @@
       <div class="nav-item" data-page="database"><span class="icon"><i class="icon-fa fa-solid fa-database"></i></span> 数据库</div>
       <div class="nav-item" data-page="stats"><span class="icon"><i class="icon-fa fa-solid fa-chart-simple"></i></span> 统计</div>
       <div class="nav-item" data-page="tools"><span class="icon"><i class="icon-fa fa-solid fa-tools"></i></span> 工具</div>
+      <div class="nav-item" data-page="cron"><span class="icon"><i class="icon-fa fa-solid fa-clock"></i></span> 定时</div>
       <div class="nav-item" id="navAdmin" data-page="admin" style="display:none"><span class="icon"><i class="icon-fa fa-solid fa-user-shield"></i></span> 管理</div>
     </nav>
     <div id="userBar" class="sidebar-user" style="display:none">
@@ -1234,6 +1235,92 @@
           </div>
         </section>
       </section>
+    </main>
+
+    <!-- ===== 定时任务页面 ===== -->
+    <main class="page" id="page-cron">
+      <header class="page-header">
+        <div>
+          <h2>
+            <i class="icon-fa fa-solid fa-clock" style="margin-right:6px"></i>定时任务
+          </h2>
+          <p>到点自动让助手执行指令，支持周期、cron 表达式与一次性任务</p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="cronStatusText" style="font-size:12px;color:var(--text-secondary)"></span>
+          <button class="btn btn-sm btn-outline" onclick="loadCronJobs()">刷新</button>
+        </div>
+      </header>
+
+      <div class="settings-content">
+        <section class="settings-group">
+          <h3>新建任务</h3>
+          <div class="settings-row">
+            <div style="flex:1">
+              <label>任务名称</label>
+              <div class="desc">留空则自动取指令前 30 字</div>
+            </div>
+            <input id="cronName" type="text" placeholder="例如：每日晨报" style="width:260px" />
+          </div>
+          <div class="settings-row">
+            <div style="flex:1">
+              <label>执行指令</label>
+              <div class="desc">到点时交给助手执行的内容</div>
+            </div>
+            <input id="cronMessage" type="text" placeholder="例如：检查系统状态并汇报" style="width:260px" />
+          </div>
+          <div class="settings-row">
+            <div style="flex:1">
+              <label>调度类型</label>
+              <div class="desc">周期 / cron 表达式 / 一次性</div>
+            </div>
+            <select id="cronKind" onchange="onCronKindChange()" style="width:260px">
+              <option value="cron">cron 表达式</option>
+              <option value="every">固定间隔</option>
+              <option value="at">一次性（指定时间）</option>
+            </select>
+          </div>
+          <div class="settings-row" id="cronExprRow">
+            <div style="flex:1">
+              <label>cron 表达式</label>
+              <div class="desc">分 时 日 月 周，如 <code>0 9 * * *</code> 表示每天 9:00</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input id="cronExpr" type="text" placeholder="0 9 * * *" style="width:150px" />
+              <input id="cronTz" type="text" placeholder="Asia/Shanghai" style="width:120px" title="时区，留空用系统本地时区" />
+            </div>
+          </div>
+          <div class="settings-row" id="cronEveryRow" style="display:none">
+            <div style="flex:1">
+              <label>执行间隔</label>
+              <div class="desc">每隔多久执行一次</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input id="cronEveryValue" type="number" min="1" value="30" style="width:90px" />
+              <select id="cronEveryUnit" style="width:130px">
+                <option value="60">分钟</option>
+                <option value="3600" selected>小时</option>
+                <option value="86400">天</option>
+              </select>
+            </div>
+          </div>
+          <div class="settings-row" id="cronAtRow" style="display:none">
+            <div style="flex:1">
+              <label>执行时间</label>
+              <div class="desc">一次性任务的触发时间</div>
+            </div>
+            <input id="cronAt" type="datetime-local" style="width:230px" />
+          </div>
+          <div style="padding:10px 0 0;text-align:right">
+            <button class="btn btn-primary btn-sm" onclick="createCronJob()">创建任务</button>
+          </div>
+        </section>
+
+        <section class="settings-group">
+          <h3>任务列表</h3>
+          <div id="cronJobList"></div>
+        </section>
+      </div>
     </main>
   </main>
 

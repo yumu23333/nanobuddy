@@ -996,6 +996,207 @@ async function loadMcpStatus() {
 }
 
 
+// ================================================================
+//  定时任务（cron）
+// ================================================================
+
+function cronEsc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+
+function cronFmtTs(ms) {
+  if (!ms) return '—';
+  try {
+    return new Date(ms).toLocaleString('zh-CN', { hour12: false });
+  } catch (e) {
+    return String(ms);
+  }
+}
+
+function cronDescribeSchedule(job) {
+  if (job.kind === 'every') {
+    const s = Math.round((job.every_ms || 0) / 1000);
+    if (s % 86400 === 0) return `每 ${s / 86400} 天`;
+    if (s % 3600 === 0) return `每 ${s / 3600} 小时`;
+    if (s % 60 === 0) return `每 ${s / 60} 分钟`;
+    return `每 ${s} 秒`;
+  }
+  if (job.kind === 'cron') {
+    return `cron ${job.expr || ''}${job.tz ? '（' + job.tz + '）' : ''}`;
+  }
+  if (job.kind === 'at') return '一次性 · ' + cronFmtTs(job.at_ms);
+  return job.kind || '—';
+}
+
+function onCronKindChange() {
+  const kind = (document.getElementById('cronKind') || {}).value || 'cron';
+  const show = (id, on) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = on ? '' : 'none';
+  };
+  show('cronExprRow', kind === 'cron');
+  show('cronEveryRow', kind === 'every');
+  show('cronAtRow', kind === 'at');
+}
+
+async function loadCronJobs() {
+  const box = document.getElementById('cronJobList');
+  const statusText = document.getElementById('cronStatusText');
+  if (!box) return;
+  box.textContent = '加载中…';
+  try {
+    const st = await nanobuddyFetch('/api/cron/status').then(r => r.json());
+    if (statusText) {
+      statusText.textContent = (st.running ? '调度器运行中' : '调度器未运行')
+        + ` · 共 ${st.total} 个（启用 ${st.enabled}）`;
+      statusText.style.color = st.running ? '' : '#e74c3c';
+    }
+    const d = await nanobuddyFetch('/api/cron/jobs?include_disabled=true').then(r => r.json());
+    const jobs = d.jobs || [];
+    if (!jobs.length) {
+      box.innerHTML = '<div style="padding:12px 0;color:var(--text-secondary);font-size:13px">'
+        + '暂无定时任务。可在上方创建，或用对话让助手「每天早上 9 点提醒我…」。</div>';
+      return;
+    }
+    box.innerHTML = jobs.map(j => {
+      const dot = j.enabled
+        ? '<span style="color:#27ae60">●</span> 启用'
+        : '<span style="color:#9aa0b0">○</span> 停用';
+      const last = j.last_run_at_ms
+        ? `上次 ${cronFmtTs(j.last_run_at_ms)} · ${j.last_status === 'ok' ? '成功' : (j.last_status || '未知')}`
+        : '尚未执行';
+      const err = j.last_error ? `<div style="color:#e74c3c;font-size:12px">${cronEsc(j.last_error)}</div>` : '';
+      const sysBadge = j.system ? '<span class="user-role-badge" style="margin-left:6px">系统</span>' : '';
+      return '<div style="padding:10px 0;border-bottom:1px solid var(--border-light)">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">'
+        + '<div style="min-width:0">'
+        + `<div style="font-size:14px;font-weight:600">${cronEsc(j.name)}${sysBadge}</div>`
+        + `<div style="font-size:12px;color:var(--text-secondary);margin-top:2px">${cronEsc(j.message)}</div>`
+        + '</div>'
+        + '<div style="display:flex;gap:6px;flex-shrink:0">'
+        + `<button class="btn btn-sm btn-outline" onclick="toggleCronJob('${cronEsc(j.id)}',${!j.enabled})">${j.enabled ? '停用' : '启用'}</button>`
+        + `<button class="btn btn-sm btn-outline" onclick="runCronJob('${cronEsc(j.id)}')">立即执行</button>`
+        + `<button class="btn btn-sm btn-danger" onclick="deleteCronJob('${cronEsc(j.id)}')">删除</button>`
+        + '</div></div>'
+        + `<div style="font-size:12px;color:var(--text-secondary);margin-top:4px">${dot} · ${cronEsc(cronDescribeSchedule(j))} · 下次 ${cronFmtTs(j.next_run_at_ms)} · ${cronEsc(last)}</div>`
+        + err
+        + '</div>';
+    }).join('');
+  } catch (e) {
+    box.textContent = '加载失败: ' + (e.message || e);
+  }
+}
+
+async function createCronJob() {
+  const name = (document.getElementById('cronName') || {}).value || '';
+  const message = ((document.getElementById('cronMessage') || {}).value || '').trim();
+  const kind = (document.getElementById('cronKind') || {}).value || 'cron';
+  if (!message) {
+    toast('请填写执行指令', 'error');
+    return;
+  }
+
+  const payload = { name, message, kind };
+  if (kind === 'cron') {
+    payload.expr = ((document.getElementById('cronExpr') || {}).value || '').trim();
+    payload.tz = ((document.getElementById('cronTz') || {}).value || '').trim() || null;
+    if (!payload.expr) {
+      toast('请填写 cron 表达式', 'error');
+      return;
+    }
+  } else if (kind === 'every') {
+    const v = Number((document.getElementById('cronEveryValue') || {}).value || 0);
+    const unit = Number((document.getElementById('cronEveryUnit') || {}).value || 1);
+    if (!(v > 0)) {
+      toast('执行间隔需大于 0', 'error');
+      return;
+    }
+    payload.every_ms = Math.round(v * unit * 1000);
+  } else if (kind === 'at') {
+    const raw = (document.getElementById('cronAt') || {}).value || '';
+    const ts = raw ? new Date(raw).getTime() : 0;
+    if (!ts || Number.isNaN(ts)) {
+      toast('请选择合法的执行时间', 'error');
+      return;
+    }
+    payload.at_ms = ts;
+    payload.delete_after_run = true;
+  }
+
+  try {
+    const d = await nanobuddyFetch('/api/cron/jobs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).then(r => r.json());
+    if (d.status !== 'ok') {
+      toast(d.detail || '创建失败', 'error');
+      return;
+    }
+    ['cronName', 'cronMessage', 'cronExpr'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    toast('定时任务已创建', 'success');
+    loadCronJobs();
+  } catch (e) {
+    toast('创建失败: ' + (e.message || e), 'error');
+  }
+}
+
+async function toggleCronJob(id, enabled) {
+  try {
+    const d = await nanobuddyFetch(`/api/cron/jobs/${encodeURIComponent(id)}/toggle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: !!enabled }),
+    }).then(r => r.json());
+    if (d.status !== 'ok') {
+      toast(d.detail || '操作失败', 'error');
+      return;
+    }
+    toast(enabled ? '任务已启用' : '任务已停用', 'success');
+    loadCronJobs();
+  } catch (e) {
+    toast('操作失败: ' + (e.message || e), 'error');
+  }
+}
+
+async function runCronJob(id) {
+  toast('正在执行，完成后可在对话历史查看结果', 'info');
+  try {
+    const d = await nanobuddyFetch(`/api/cron/jobs/${encodeURIComponent(id)}/run`, { method: 'POST' })
+      .then(r => r.json());
+    if (d.status !== 'ok') {
+      toast(d.detail || '执行失败', 'error');
+      return;
+    }
+    toast('执行完成', 'success');
+    loadCronJobs();
+  } catch (e) {
+    toast('执行失败: ' + (e.message || e), 'error');
+  }
+}
+
+async function deleteCronJob(id) {
+  if (!confirm('确定删除该定时任务？')) return;
+  try {
+    const d = await nanobuddyFetch(`/api/cron/jobs/${encodeURIComponent(id)}`, { method: 'DELETE' })
+      .then(r => r.json());
+    if (d.status !== 'ok') {
+      toast(d.detail || '删除失败', 'error');
+      return;
+    }
+    toast('任务已删除', 'success');
+    loadCronJobs();
+  } catch (e) {
+    toast('删除失败: ' + (e.message || e), 'error');
+  }
+}
+
+
 // ---- 测试模型连接 ----
 async function testModelConn() {
   const btn = PAGES_DOM.testModelBtn();
@@ -1933,6 +2134,12 @@ window.loadAuditLogs = loadAuditLogs;
 window.loadModelSettings = loadModelSettings;
 window.reloadMcpFilesystem = reloadMcpFilesystem;
 window.loadMcpStatus = loadMcpStatus;
+window.loadCronJobs = loadCronJobs;
+window.onCronKindChange = onCronKindChange;
+window.createCronJob = createCronJob;
+window.toggleCronJob = toggleCronJob;
+window.runCronJob = runCronJob;
+window.deleteCronJob = deleteCronJob;
 window.testModelConn = testModelConn;
 window.saveSettings = saveSettings;
 window.loadWorkConfig = loadWorkConfig;

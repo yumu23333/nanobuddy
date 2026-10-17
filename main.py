@@ -18,6 +18,7 @@ from core.routes.routes_api import router as api_router
 from core.routes.routes_auth import router as auth_router
 from core.routes.routes_admin import router as admin_router
 from core.routes.routes_security import router as security_router
+from core.routes.routes_cron import router as cron_router
 from core.security.auth import APIKeyMiddleware, get_security_settings
 from core.security.context import clear_request_context, set_request_context
 from core.security.users import bootstrap_admin_if_needed
@@ -72,7 +73,23 @@ async def lifespan(app: FastAPI):
             logger.exception("后台引擎初始化失败: {}", e)
 
     init_task = asyncio.create_task(_init_engine())
+
+    # 定时任务调度器（引擎 CronService 此前只在 CLI 启动，Web 端补上）
+    try:
+        from core.cron.service import start_cron_service, stop_cron_service
+
+        await start_cron_service()
+    except Exception as e:
+        logger.warning("定时任务调度器初始化异常: {}", e)
+
     yield
+
+    try:
+        from core.cron.service import stop_cron_service
+
+        stop_cron_service()
+    except Exception as e:
+        logger.debug("停止定时任务调度器失败: {}", e)
     init_task.cancel()
     try:
         await init_task
@@ -91,6 +108,7 @@ app.include_router(api_router)
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(security_router)
+app.include_router(cron_router)
 app.include_router(work_router)
 
 
