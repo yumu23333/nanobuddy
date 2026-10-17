@@ -1,5 +1,6 @@
 """知识库、文件浏览、设置的 API 路由"""
 
+import logging
 import os
 import json
 import datetime
@@ -19,6 +20,8 @@ from core.database.db import get_db
 from core.rag.vector_store import get_vector_store
 from core.document.parser import is_supported, get_file_metadata, get_doc_category
 from core.document.indexer import get_indexer
+
+logger = logging.getLogger("nanobuddy.routes_api")
 
 router = APIRouter(prefix="/api")
 
@@ -65,7 +68,7 @@ def index_document(req: IndexRequest):
         from core.security.audit import audit_file_access
         audit_file_access(path, "index", tool_name="api_knowledge_index")
     except Exception:
-        pass
+        logger.warning("写入文件访问审计日志失败", exc_info=True)
 
     indexer = get_indexer()
 
@@ -113,7 +116,7 @@ def clear_knowledge():
     try:
         vs.client.delete_collection("nanobuddy_documents")
     except Exception:
-        pass
+        logger.debug("重建向量索引：删除旧集合失败", exc_info=True)
 
     # 重建向量集
     from core.rag.embeddings import EmbeddingManager
@@ -230,7 +233,7 @@ def _enrich_dir_item(name: str, full: str, is_dir: bool) -> dict:
                     extra["owner_display"] = row.get("display_name") or row.get("username")
                     extra["label"] = extra["owner_display"]
         except Exception:
-            pass
+            logger.debug("补全文件属主信息失败", exc_info=True)
     return extra
 
 
@@ -281,7 +284,7 @@ def list_files(
         from core.security.audit import audit_file_access
         audit_file_access(path, "list", tool_name="api_files_list")
     except Exception:
-        pass
+        logger.warning("写入文件访问审计日志失败", exc_info=True)
 
     if not os.path.exists(path):
         raise HTTPException(404, f"路径不存在 {path}")
@@ -441,7 +444,7 @@ def open_file(
         from core.security.audit import audit_file_access
         audit_file_access(path, "open", tool_name="api_files_open")
     except Exception:
-        pass
+        logger.warning("写入文件访问审计日志失败", exc_info=True)
     if not os.path.exists(path):
         raise HTTPException(404, f"文件不存在 {path}")
     if os.path.isdir(path):
@@ -512,7 +515,7 @@ async def files_upload(
             from core.security.audit import audit_file_access
             audit_file_access(save_path, "upload", tool_name="api_files_upload")
         except Exception:
-            pass
+            logger.warning("写入文件访问审计日志失败", exc_info=True)
         size = len(content)
         ext = os.path.splitext(safe_name)[1].lower()
         return {
@@ -581,7 +584,7 @@ def _merge_all_nanobuddy_conversations_for_admin(
                 "owner_display_name": (owner.get("display_name") or owner["username"]) if owner else "",
             })
     except Exception:
-        pass
+        logger.debug("补全会话属主信息失败", exc_info=True)
 
 
 def _merge_user_nanobuddy_sessions(convs: list[dict], user: CurrentUser) -> None:
@@ -612,7 +615,7 @@ def _merge_user_nanobuddy_sessions(convs: list[dict], user: CurrentUser) -> None
                 "owner_user_id": user.id,
             })
     except Exception:
-        pass
+        logger.debug("补全会话统计信息失败", exc_info=True)
 
 
 def _assert_conv_access(conv_id: str, user: CurrentUser) -> None:
@@ -638,7 +641,7 @@ def _assert_conv_access(conv_id: str, user: CurrentUser) -> None:
         if sm.read_session_file(sk) or sm.read_session_file(conv_id):
             return
     except Exception:
-        pass
+        logger.debug("读取会话文件失败", exc_info=True)
     raise HTTPException(404, "对话不存在")
 
 
@@ -679,7 +682,7 @@ def get_conversation(conv_id: str, user: CurrentUser = Depends(get_current_user)
                     "messages": msgs,
                 }
     except Exception:
-        pass
+        logger.debug("组装会话响应失败", exc_info=True)
     raise HTTPException(404, "对话不存在")
 
 
@@ -704,7 +707,7 @@ def delete_conversation(conv_id: str, user: CurrentUser = Depends(get_current_us
         if user.id not in ("anonymous", "localhost", "service"):
             sm.delete_session(user_session_key(user.id, conv_id))
     except Exception:
-        pass
+        logger.debug("删除会话文件失败", exc_info=True)
     return {"status": "ok", "message": "对话已删除"}
 
 
@@ -1033,7 +1036,7 @@ def update_settings(req: SettingsUpdate, request: Request):
                 with open(config_path, "r", encoding="utf-8") as f:
                     _adapter_mod.adapter.config = yaml.load(f) or {}
         except Exception:
-            pass
+            logger.warning("运行时配置热加载失败，相关更改需重启后生效", exc_info=True)
 
     if db_updates:
         db = get_db()
@@ -1339,7 +1342,7 @@ async def upload_file(file: UploadFile = File(...)):
             from core.security.audit import audit_file_access
             audit_file_access(save_path, "upload", tool_name="api_upload")
         except Exception:
-            pass
+            logger.warning("写入上传审计日志失败", exc_info=True)
 
         size = len(content)
         ext = os.path.splitext(original_name)[1].lower()
@@ -1373,7 +1376,7 @@ def cleanup_uploads(hours: int = 24):
                 os.remove(fp)
                 count += 1
             except Exception:
-                pass
+                logger.debug("清理临时文件失败", exc_info=True)
     return {"status": "ok", "deleted": count}
 
 
@@ -1400,7 +1403,7 @@ def system_status(request: Request):
         if r.status_code == 200:
             models = [m["name"] for m in r.json().get("models", [])]
     except Exception:
-        pass
+        logger.debug("获取 Ollama 模型列表失败（Ollama 可能未启动）", exc_info=True)
 
     user = getattr(request.state, "user", None)
     
@@ -1480,7 +1483,7 @@ def debug_agent_state(session_id: str = ""):
             msgs = [{"role": m["role"], "content": str(m.get("content", ""))[:500]} for m in data.get("messages", [])]
             return {"session_id": session_id, "memory_size": len(msgs), "messages": msgs}
     except Exception:
-        pass
+        logger.debug("读取会话记忆失败", exc_info=True)
     return {"session_id": session_id or "auto", "memory_size": 0, "messages": []}
 
 
@@ -1684,7 +1687,7 @@ def scan_table_metadata(config_id: int):
                 c3.close()
                 conn3.close()
             except Exception:
-                pass
+                logger.debug("统计数据行数失败", exc_info=True)
 
             db.save_table_metadata(
                 config_id=config_id, table_name=tn,

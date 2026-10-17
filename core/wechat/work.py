@@ -362,7 +362,7 @@ class WorkWSReceiver:
             try:
                 self._ws.close()
             except Exception:
-                pass
+                logger.debug("关闭 WebSocket 连接失败", exc_info=True)
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=2)
         logger.info("WebSocket 接收已停止")

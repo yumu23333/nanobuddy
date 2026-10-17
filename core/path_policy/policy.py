@@ -9,6 +9,8 @@ from pathlib import Path
 
 from core.mcp.mcp_paths import _project_root, resolve_filesystem_allowed_dirs
 
+logger = logging.getLogger(__name__)
+
 _BOUNDARY_NOTE = (
     "（安全策略：仅允许访问设置中配置的文件目录，"
     "可在「设置 → MCP 文件访问范围」中调整）"
@@ -59,7 +61,7 @@ def get_allowed_roots(config: dict | None = None, project_root: Path | None = No
                 return dirs
             return [shared_dir(), user_dir(user.id)]
     except Exception:
-        pass
+        logger.warning("计算文件访问范围失败，回退默认目录", exc_info=True)
     if not is_sandbox_enabled(config):
         return []
     dirs = list(resolve_filesystem_allowed_dirs(config, root))
@@ -72,7 +74,7 @@ def get_allowed_roots(config: dict | None = None, project_root: Path | None = No
             if not any(str(ws).lower() == str(d).lower() for d in dirs):
                 dirs.append(ws)
     except Exception:
-        pass
+        logger.warning("合并工作区策略根目录失败", exc_info=True)
     return dirs
 
 

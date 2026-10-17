@@ -5,6 +5,8 @@ from typing import Any
 
 from nanobuddy.agent.tools.base import Tool
 
+from loguru import logger
+
 
 class ToolRegistry:
     """
@@ -118,7 +120,7 @@ class ToolRegistry:
                 from core.security.audit import audit_tool_call
                 audit_tool_call(name, params, status="error", error=error[:500])
             except Exception:
-                pass
+                logger.opt(exception=True).warning("写入工具调用审计日志失败")
             return error + _HINT
 
         t0 = time.perf_counter()
@@ -136,7 +138,7 @@ class ToolRegistry:
                     error=preview if status == "error" else "",
                 )
             except Exception:
-                pass
+                logger.opt(exception=True).warning("写入工具调用审计日志失败")
             if status == "error":
                 return str(result) + _HINT
             return result
@@ -147,7 +149,7 @@ class ToolRegistry:
                 from core.security.audit import audit_tool_call
                 audit_tool_call(name, params, status="error", duration_ms=duration_ms, error=err)
             except Exception:
-                pass
+                logger.opt(exception=True).warning("写入工具调用审计日志失败")
             return err + _HINT
 
     @property

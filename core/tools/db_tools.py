@@ -53,7 +53,7 @@ def _remove_conn(conn_id: str):
         if os.path.exists(path):
             os.remove(path)
     except Exception:
-        pass
+        logger.debug("清理临时数据库文件失败", exc_info=True)
 
 
 def _get_mysql_connection(config: dict):

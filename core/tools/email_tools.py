@@ -1,5 +1,6 @@
 """邮件处理工具 —— 解析 .eml / .msg 邮件文件，提取正文和附件"""
 
+import logging
 import os
 import email
 import re
@@ -8,6 +9,8 @@ from email.utils import parsedate_to_datetime
 from typing import Optional
 
 from core.tools.registry_tools import register_tool
+
+logger = logging.getLogger(__name__)
 
 
 def _format_size(size: int) -> str:
@@ -107,7 +110,7 @@ def _parse_eml(path: str, extract_body: bool, max_body_length: int) -> str:
         if dt:
             date_str = dt.strftime("%Y-%m-%d %H:%M:%S")
     except Exception:
-        pass
+        logger.debug("解析邮件日期失败", exc_info=True)
 
     lines = [
         f"📧 邮件解析结果",
@@ -149,7 +152,7 @@ def _parse_eml(path: str, extract_body: bool, max_body_length: int) -> str:
                     if payload:
                         body_text = payload.decode("utf-8", errors="replace")
                 except Exception:
-                    pass
+                    logger.debug("解码邮件正文失败", exc_info=True)
 
         if extract_body and part.get_content_type() == "text/html" and not body_text:
             try:
@@ -157,7 +160,7 @@ def _parse_eml(path: str, extract_body: bool, max_body_length: int) -> str:
                 if payload:
                     body_html = payload
             except Exception:
-                pass
+                logger.debug("获取邮件 HTML 正文失败", exc_info=True)
 
     if attachments:
         lines.append(f"\n📎 附件 ({len(attachments)} 个):")

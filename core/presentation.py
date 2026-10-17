@@ -17,6 +17,7 @@
   - 模板加载（.potx/.pptx）
 """
 
+import logging
 import json
 import os
 from typing import Optional
@@ -29,6 +30,8 @@ from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.chart import XL_CHART_TYPE, XL_LEGEND_POSITION, XL_LABEL_POSITION
 from pptx.oxml.ns import qn
 from lxml import etree
+
+logger = logging.getLogger(__name__)
 
 
 class PresentationBuilder:
@@ -696,7 +699,7 @@ class PresentationBuilder:
             notes_slide = slide.notes_slide
             notes_slide.notes_text_frame.text = notes
         except Exception:
-            pass
+            logger.debug("写入演讲者备注失败", exc_info=True)
 
     def _apply_transition(self, slide, name: str):
         """应用幻灯片切换效果（OXML）"""

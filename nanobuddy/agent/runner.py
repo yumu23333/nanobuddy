@@ -1087,7 +1087,7 @@ class AgentRunner:
                 turn_id=str(getattr(spec, "_current_iteration", "")),
             ))
         except Exception:
-            pass
+            logger.opt(exception=True).warning("写入工具调用审计日志失败")
 
     @staticmethod
     def _report_tool_cost(
@@ -1116,7 +1116,7 @@ class AgentRunner:
                     turn_id=str(getattr(spec, '_current_iteration', '')),
                 ))
             except Exception:
-                pass
+                logger.opt(exception=True).warning("写入工具调用审计日志失败")
 
     def _normalize_tool_result(
         self,

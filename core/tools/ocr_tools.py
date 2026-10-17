@@ -1,10 +1,13 @@
 """OCR 文字识别工具 —— 图片/PDF 文字提取，支持中文"""
 
+import logging
 import os
 import tempfile
 from typing import Optional
 
 from core.tools.registry_tools import register_tool
+
+logger = logging.getLogger(__name__)
 
 
 def _get_ocr_engine():
@@ -21,7 +24,7 @@ def _get_ocr_engine():
         reader = easyocr.Reader(["ch_sim", "en"], gpu=False)
         engine_name = "easyocr"
     except Exception:
-        pass
+        logger.warning("easyocr 引擎不可用", exc_info=True)
 
     if reader is None:
         try:
@@ -31,7 +34,7 @@ def _get_ocr_engine():
             reader = pytesseract
             engine_name = "tesseract"
         except Exception:
-            pass
+            logger.warning("tesseract 引擎不可用，OCR 功能将受限", exc_info=True)
 
     if reader is None:
         return None, ""

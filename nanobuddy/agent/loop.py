@@ -829,10 +829,9 @@ class AgentLoop:
                                 key,
                             )
                     except Exception:
-                        logger.debug(
+                        logger.opt(exception=True).debug(
                             "Could not restore checkpoint for cancelled session {}",
                             session_key,
-                            exc_info=True,
                         )
                     raise
                 except Exception:

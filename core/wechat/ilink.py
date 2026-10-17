@@ -383,7 +383,7 @@ class ILinkClient:
                 timeout=10,
             )
         except Exception:
-            pass
+            logger.debug("ilink 请求发送失败（调用方未使用返回值）", exc_info=True)
 
     # ──── 文件上传（准备发送文件用）────
 

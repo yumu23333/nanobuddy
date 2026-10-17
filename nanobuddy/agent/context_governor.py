@@ -104,7 +104,7 @@ class ContextGovernor:
                 messages = self._drop_orphan_tool_results(messages)
                 messages = self._backfill_missing_tool_results(messages)
             except Exception:
-                pass  # Keep original messages if repair also fails
+                logger.opt(exception=True).warning("消息序列修复失败")
 
         return messages
 

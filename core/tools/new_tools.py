@@ -1,5 +1,6 @@
 """扩展工具集 —— 代码执行、文件浏览、知识库、文档生成、数据处理"""
 
+import logging
 import os
 import sys
 import csv
@@ -26,6 +27,8 @@ from core.document.parser import parse_document, is_supported, get_file_metadata
 from core.document.indexer import get_indexer
 from core.rag.vector_store import get_vector_store
 from core.database.db import get_db
+
+logger = logging.getLogger(__name__)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -63,7 +66,7 @@ try:
         return c
     openpyxl.Worksheet.cell = _safe_cell
 except Exception:
-    pass
+    logger.debug("修补 openpyxl cell 方法失败", exc_info=True)
 
 try:
 """)
@@ -309,7 +312,7 @@ def read_document(path: str = "", file_path: str = "", document_path: str = "", 
             prs = Presentation(path)
             summary += f"幻灯片: {len(prs.slides)} 张\n"
         except Exception:
-            pass
+            logger.debug("解析 PPTX 摘要失败", exc_info=True)
     # PDF显示页数
     elif ext == ".pdf":
         try:
@@ -317,7 +320,7 @@ def read_document(path: str = "", file_path: str = "", document_path: str = "", 
             reader = PdfReader(path)
             summary += f"页数: {len(reader.pages)}\n"
         except Exception:
-            pass
+            logger.debug("解析 PDF 摘要失败", exc_info=True)
 
     summary += "---\n"
 
@@ -1125,7 +1128,7 @@ def delete_file(path: str, confirm: bool = False) -> str:
         if not mode & stat.S_IWRITE:
             os.chmod(path, mode | stat.S_IWRITE)
     except Exception:
-        pass
+        logger.debug("修改文件只读属性失败", exc_info=True)
 
     try:
         os.remove(path)

@@ -98,7 +98,7 @@ def _apply_db_model_settings(config: dict, include_user_prefs: bool = True) -> d
         from core.models.models import apply_model_settings_from_db
         return apply_model_settings_from_db(config, include_user_prefs=include_user_prefs)
     except Exception:
-        logger.warning("读取数据库模型设置失败，使用 config.yaml 配置", exc_info=True)
+        logger.opt(exception=True).warning("读取数据库模型设置失败，使用 config.yaml 配置")
         return config
 
 
@@ -296,7 +296,7 @@ class SSEHook(AgentHook):
         try:
             self.q.put_nowait(json.dumps({"phase": phase, **data}, ensure_ascii=False))
         except Exception:
-            pass
+            logger.opt(exception=True).debug("SSE 事件入队失败（前端可能已断开）")
 
     async def before_iteration(self, ctx: AgentHookContext) -> None:
         await self.q.put(json.dumps({"phase": "thinking", "round": ctx.iteration + 1}, ensure_ascii=False))
@@ -721,7 +721,7 @@ class NanoBuddyAdapter:
         try:
             self._mcp_task = asyncio.create_task(self._connect_mcp_servers())
         except Exception:
-            pass
+            logger.opt(exception=True).debug("启动 MCP 连接任务失败")
         logger.info("NanoBuddyAdapter ready: {} tools total, {} native + __tool__ dispatcher",
                     len(self.tools._tools), len(self.lazy_tools._tools) - 1)
 
@@ -874,7 +874,7 @@ class NanoBuddyAdapter:
             try:
                 await stack.aclose()
             except Exception:
-                pass
+                logger.opt(exception=True).debug("关闭 MCP 栈失败")
         prefix = self._mcp_tool_prefix(server_name)
         n = self.tools.unregister_prefix(prefix)
         if n:
@@ -1009,7 +1009,7 @@ class NanoBuddyAdapter:
             try:
                 await stack.aclose()
             except Exception:
-                pass
+                logger.opt(exception=True).debug("关闭 MCP 栈失败")
         self._mcp_stacks.clear()
 
     def get_mcp_servers_config(self) -> list[dict]:
@@ -1095,7 +1095,7 @@ class NanoBuddyAdapter:
             opts = get_context_settings(self.config)
             history = prune_history_messages(history, opts["prune_tool_results"])
         except Exception:
-            pass
+            logger.opt(exception=True).warning("加载会话历史失败，本轮对话将无上下文")
         import datetime
         today = datetime.date.today().strftime("%Y年%m月%d日")
         sys_prompt = load_system_prompt() + f"\n\n## 当前日期\n今天是 {today}。搜索新闻时务必使用今天的日期作为搜索关键词。"
@@ -1117,7 +1117,7 @@ class NanoBuddyAdapter:
             if _rh:
                 sys_prompt += f"\n\n## 当前账号权限\n{_rh}\n"
         except Exception:
-            pass
+            logger.opt(exception=True).debug("注入账号权限提示失败")
         msgs = [{"role": "system", "content": sys_prompt}]
 
         # 新会话自动填充默认技能

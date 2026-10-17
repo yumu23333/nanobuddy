@@ -13,6 +13,8 @@ from core.database.db import get_db
 from core.security.deps import require_admin
 from core.security.users import ROLES, CurrentUser, hash_password
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
@@ -83,7 +85,7 @@ def admin_delete_user(user_id: str, admin: CurrentUser = Depends(require_admin))
             sm.delete_session(cid)
             sm.delete_session(user_session_key(user_id, cid))
     except Exception:
-        pass
+        logger.debug("清理会话文件失败", exc_info=True)
     db.delete_user(user_id)
     return {"status": "ok", "message": "用户已删除"}
 

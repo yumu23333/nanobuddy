@@ -1,5 +1,6 @@
 """文件整理 & 数据处理工具 —— 分类归档/批量重命名/去重/ETL/清洗/转换"""
 
+import logging
 import os
 import re
 import json
@@ -11,6 +12,8 @@ import shutil
 from typing import Optional
 
 from core.tools.registry_tools import register_tool
+
+logger = logging.getLogger(__name__)
 
 
 def _format_size(size: int) -> str:
@@ -353,7 +356,7 @@ def deduplicate_files(directory: str = "", action: str = "scan",
                     "mtime": stat.st_mtime,
                 })
             except Exception:
-                pass
+                logger.debug("获取文件状态失败", exc_info=True)
 
     if not all_files:
         return "文件夹中没有文件"
@@ -378,7 +381,7 @@ def deduplicate_files(directory: str = "", action: str = "scan",
                 f["md5"] = md5.hexdigest()
                 md5_groups.setdefault(md5.hexdigest(), []).append(f)
             except Exception:
-                pass
+                logger.debug("计算文件 MD5 失败", exc_info=True)
 
     # 精确 MD5 重复
     exact_dupes = {k: v for k, v in md5_groups.items() if len(v) > 1}
