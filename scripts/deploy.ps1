@@ -168,9 +168,8 @@ Write-Ok "workspace / logs ready"
 
 Write-Host "`n========================================" -ForegroundColor Green
 Write-Host "  Deploy finished!" -ForegroundColor Green
-Write-Host "  1. Edit .env (DEEPSEEK_API_KEY, etc.)" -ForegroundColor White
-Write-Host "  2. Start: launch_nanobuddy.bat (browser) or run_server.bat (console)" -ForegroundColor White
-Write-Host "     CN: setup_deploy.bat = deploy, same as one-click deploy bat" -ForegroundColor DarkGray
+Write-Host "  1. Edit .env (NANOBUDDY_ADMIN_PASSWORD); model API Key goes in the web Settings page" -ForegroundColor White
+Write-Host "  2. Start: ∆Ù∂Ø÷˙ ÷.bat (smart launch; append 'server' for console/log mode)" -ForegroundColor White
 Write-Host "  Open: http://127.0.0.1:8000/" -ForegroundColor Cyan
 Write-Host "========================================`n" -ForegroundColor Green
 

@@ -92,7 +92,7 @@ git lfs pull
 
 
 
-双击 **`setup_deploy.bat`**（或 `一键部署.bat`）。
+双击 **`setup_deploy.bat`**。
 
 
 
@@ -138,9 +138,9 @@ NANOBUDDY_ADMIN_PASSWORD=你想设置的管理员密码
 
 |------|------|
 
-| **推荐** | 双击 **`launch_nanobuddy.bat`** → 自动打开浏览器 |
+| **推荐** | 双击 **`启动助手.bat`** → 后台启动并自动打开浏览器 |
 
-| 看日志 | 双击 **`run_server.bat`** → 黑窗里运行，停服务按 `Ctrl+C` |
+| 看日志 | 运行 **`启动助手.bat 服务`** → 黑窗里显示日志，停服务按 `Ctrl+C` |
 
 
 
@@ -178,13 +178,13 @@ NANOBUDDY_ADMIN_PASSWORD=你想设置的管理员密码
 
 |------|------|
 
-| `setup_deploy.bat` / `一键部署.bat` | 新机安装 Python 虚拟环境与依赖 |
+| `启动助手.bat` | 唯一启动入口：双击智能启动（缺环境自动部署、已在运行直接开浏览器、否则后台启动并开网页） |
 
-| `launch_nanobuddy.bat` / `启动助手.bat` | 后台启动服务并打开网页 |
-
-| `run_server.bat` / `运行服务.bat` | 带黑窗启动（排错时用） |
+| `setup_deploy.bat` | 部署脚本本体（由 `启动助手.bat 部署` 调用，也可单独双击） |
 
 | `package_wheels.bat` | 在本机重新打包离线 wheel（换 Python 版本时用） |
+
+`启动助手.bat` 支持参数模式：`服务`（带日志前台，排错用）、`部署`（一键部署）、`菜单`（交互菜单）、`/?`（帮助）。
 
 
 
@@ -246,9 +246,9 @@ NANOBUDDY_ADMIN_PASSWORD=你想设置的管理员密码
 
 
 
-- 用 `run_server.bat` 启动的：在黑窗按 **Ctrl+C**
+- 用 `启动助手.bat 服务` 启动的：在黑窗按 **Ctrl+C**
 
-- 用 `launch_nanobuddy.bat` 启动的：任务管理器结束 **pythonw.exe**，或 PowerShell：
+- 用 `启动助手.bat` 后台模式启动的：任务管理器结束 **pythonw.exe**，或 PowerShell：
 
 
 
@@ -290,7 +290,7 @@ A：`DEEPSEEK_API_KEY` 未设置的警告可忽略——启动后在 **设置 �
 
 **Q：双击 `main.py` 闪退？**  
 
-A：不要双击 py 文件，请用 `launch_nanobuddy.bat` 或 `run_server.bat`。
+A：不要双击 py 文件，请用 `启动助手.bat`（或 `启动助手.bat 服务` 看日志排错）。
 
 
 
