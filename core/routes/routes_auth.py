@@ -16,6 +16,8 @@ from core.security.users import (
     verify_password,
 )
 from core.security.context import set_request_context
+from core.security import login_guard
+from core.security.audit import get_audit_logger
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -33,11 +35,16 @@ class RegisterRequest(BaseModel):
 @router.post("/login")
 def login(req: LoginRequest, request: Request):
     db = get_db()
+    client_ip = _client_ip(request)
+    login_guard.check_lock(req.username, client_ip)
     row = db.get_user_by_username(req.username)
     if not row or not row.get("is_active"):
+        _record_login_failure(req.username, client_ip)
         raise HTTPException(401, "用户名或密码错误")
     if not verify_password(req.password, row["password_hash"]):
+        _record_login_failure(req.username, client_ip)
         raise HTTPException(401, "用户名或密码错误")
+    login_guard.record_success(req.username, client_ip)
     db.touch_user_login(row["id"])
     token, expires_in = create_access_token(row["id"], row["username"], row["role"])
     user = CurrentUser(
@@ -99,3 +106,19 @@ def register(req: RegisterRequest):
 
 def _client_ip(request: Request) -> str:
     return request.client.host if request.client else ""
+
+
+def _record_login_failure(username: str, client_ip: str) -> None:
+    """累计一次登录失败；达到阈值时写审计日志（锁定生效由 check_lock 执行）。"""
+    attempts = login_guard.record_failure(username, client_ip)
+    if attempts >= login_guard.MAX_ATTEMPTS:
+        try:
+            get_audit_logger().log_auth_event(
+                event_type="auth_lockout",
+                username=username,
+                status="locked",
+                detail=f"连续登录失败 {attempts} 次，已锁定 {login_guard.LOCK_MINUTES} 分钟",
+                client_ip=client_ip,
+            )
+        except Exception as e:
+            logging.getLogger("nanobuddy.routes_auth").warning("登录锁定审计写入失败: %s", e)

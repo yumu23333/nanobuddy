@@ -97,6 +97,24 @@ class AuditLogger:
         for path, action in paths:
             self.log_file_access(path, action, status=status, tool_name=tool_name)
 
+    def log_auth_event(
+        self,
+        *,
+        event_type: str,
+        username: str,
+        status: str = "fail",
+        detail: str = "",
+        client_ip: str = "",
+    ) -> None:
+        """记录登录类安全事件（防爆破锁定、禁用账号尝试等）。"""
+        self._write({
+            "event_type": event_type,
+            "actor": username,
+            "status": status,
+            "detail": detail,
+            "client_ip": client_ip,
+        })
+
     def log_file_access(
         self,
         path: str,
