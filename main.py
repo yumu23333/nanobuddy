@@ -8,7 +8,7 @@ import sys
 import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
@@ -113,6 +113,14 @@ class ResetRequest(BaseModel):
     session_id: str = Field(default="", description="会话ID")
 
 
+class RegenerateRequest(BaseModel):
+    conversation_id: str = Field(default="", description="对话ID")
+    message_index: int = Field(..., ge=0, description="目标消息序号（0 起，按会话消息顺序）")
+    mode: str = Field(default="regenerate", description="regenerate=重新生成助手回复；edit=编辑用户消息重发")
+    query: str = Field(default="", description="edit 模式下编辑后的新文本")
+    session_id: str = Field(default="", description="会话ID（兼容旧字段）")
+
+
 # ── 前端页面 ──
 
 _cache_buster: str = ""
@@ -202,6 +210,67 @@ async def reset_chat(req: ResetRequest):
     adapter = await get_adapter()
     await adapter.reset_session(req.session_id)
     return {"status": "ok", "message": "会话已重置"}
+
+
+@app.post("/chat/regenerate")
+async def chat_regenerate(req: RegenerateRequest, request: Request):
+    """重新生成 / 编辑重发：截断锚点之后的会话，以原问（或编辑后的新文本）重跑。"""
+    adapter = await get_adapter()
+    sid, conv_id, user = resolve_chat_ids(
+        request, session_id=req.session_id, conversation_id=req.conversation_id
+    )
+    set_request_context(
+        session_id=sid,
+        client_ip=request.client.host if request.client else "",
+        actor=user.username if user else "api",
+        user_id=user.id if user else "",
+        role=user.role if user else "",
+    )
+    from core.database.db import get_db
+    from core.context.chat_persist import truncate_engine_session
+
+    db = get_db()
+    msgs = db.get_messages(conv_id, limit=5000)
+    if not msgs or req.message_index >= len(msgs):
+        raise HTTPException(400, "消息序号无效或会话为空")
+    target = msgs[req.message_index]
+    if req.mode == "edit":
+        if target.get("role") != "user":
+            raise HTTPException(400, "编辑重发只能用于用户消息")
+        new_query = (req.query or "").strip()
+        if not new_query:
+            raise HTTPException(400, "编辑后的内容不能为空")
+        anchor_idx = req.message_index
+    elif req.mode == "regenerate":
+        if target.get("role") != "assistant":
+            raise HTTPException(400, "重新生成只能用于助手消息")
+        anchor_idx = next(
+            (i for i in range(req.message_index - 1, -1, -1) if msgs[i].get("role") == "user"),
+            None,
+        )
+        if anchor_idx is None:
+            raise HTTPException(400, "未找到该回复对应的用户消息")
+        new_query = (msgs[anchor_idx].get("content") or "").strip()
+        if not new_query:
+            raise HTTPException(400, "原消息内容为空，无法重新生成")
+    else:
+        raise HTTPException(400, "mode 仅支持 regenerate / edit")
+
+    # 截断 DB（保留锚点之前的消息）
+    db.truncate_messages_from(conv_id, msgs[anchor_idx]["id"])
+    # 截断引擎会话（按用户消息序数映射；失败则降级为保留完整历史）
+    user_ordinal = sum(1 for m in msgs[:anchor_idx] if m.get("role") == "user")
+    truncate_engine_session(adapter, sid, user_ordinal)
+
+    async def generate():
+        async for event_str in adapter.chat_stream(query=new_query, sid=sid, files=None):
+            yield f"data: {event_str}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"X-Session-Id": sid, "X-Conversation-Id": conv_id},
+    )
 
 
 # ── 工具列表 ──

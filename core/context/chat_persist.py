@@ -1,10 +1,41 @@
 """对话持久化：nanobuddy 会话文件 + SQLite（供历史列表与管理页）。"""
 
 from __future__ import annotations
+from datetime import datetime
+
 from loguru import logger
 from core.database.db import get_db
 from core.security.users import parse_session_conversation_id
 
+
+def truncate_engine_session(adapter, session_key: str, user_ordinal: int) -> bool:
+    """把引擎会话截断到第 user_ordinal 条用户消息之前（0 起）。
+
+    DB 消息与引擎 session 的用户消息序列一致（每轮对话各追加一条用户消息），
+    因此可按用户消息序数映射截断。返回 False 表示未找到截断点
+    （会话文件可能已被清理），调用方应降级处理。
+    """
+    try:
+        manager = adapter.session_manager
+        session = manager.get_or_create(session_key)
+        seen = -1
+        cut = None
+        for i, m in enumerate(session.messages):
+            if m.get("role") == "user":
+                seen += 1
+                if seen == user_ordinal:
+                    cut = i
+                    break
+        if cut is None:
+            return False
+        session.messages = session.messages[:cut]
+        session.last_consolidated = min(session.last_consolidated, len(session.messages))
+        session.updated_at = datetime.now()
+        manager.save(session)
+        return True
+    except Exception as e:
+        logger.warning("截断引擎会话失败 {}: {}", session_key, e)
+        return False
 
 def parse_session_user_and_conv(session_key: str) -> tuple[str | None, str]:
     if session_key.startswith("user:") and session_key.count(":") >= 2:

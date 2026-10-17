@@ -426,10 +426,29 @@ class Database:
     def get_messages(self, conv_id: str, limit: int = 100) -> list[dict]:
         conn = self._get_conn()
         rows = conn.execute(
-            "SELECT role, content, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at ASC LIMIT ?",
+            "SELECT id, role, content, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at ASC LIMIT ?",
             (conv_id, limit),
         ).fetchall()
         return [dict(r) for r in rows]
+
+    def truncate_messages_from(self, conv_id: str, from_message_id: int) -> int:
+        """删除 conv_id 中 id >= from_message_id 的消息（重新生成/编辑重发用）。
+
+        返回删除条数，同时校正 conversations.message_count。
+        """
+        conn = self._get_conn()
+        cur = conn.execute(
+            "DELETE FROM messages WHERE conversation_id = ? AND id >= ?",
+            (conv_id, int(from_message_id)),
+        )
+        deleted = cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
+        conn.execute(
+            "UPDATE conversations SET message_count = "
+            "(SELECT COUNT(*) FROM messages WHERE conversation_id = ?), updated_at = ? WHERE id = ?",
+            (conv_id, time.time(), conv_id),
+        )
+        conn.commit()
+        return deleted
 
     # ---- 文档管理 ----
 

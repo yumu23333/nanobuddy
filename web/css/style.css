@@ -363,6 +363,32 @@ body {
   border-color: var(--primary);
 }
 
+.message .msg-action-btn {
+  position: absolute;
+  top: 8px;
+  right: 40px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-secondary);
+  z-index: 5;
+}
+.message:hover .msg-action-btn {
+  display: flex;
+}
+.message .msg-action-btn:hover {
+  background: var(--bg);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
 .message .bubble pre {
   background: #0f172a;
   color: #e2e8f0;

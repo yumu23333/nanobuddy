@@ -53,6 +53,7 @@ const ChatState = {
   toolTimers: {},
   debugEvents: [],
   thinkingTimer: null,
+  pendingEdit: null,
 };
 
 // ---------- DOM 引用缓存 ----------
@@ -700,6 +701,29 @@ async function sendChat() {
     }
   }
 
+  // 编辑重发模式：截断到锚点并以编辑后的文本重跑
+  if (ChatState.pendingEdit && queryText) {
+    const edit = ChatState.pendingEdit;
+    ChatState.pendingEdit = null;
+    const emptyEdit = msgs.querySelector('.empty-state');
+    if (emptyEdit) emptyEdit.remove();
+    truncateUIFrom(edit.message_index);
+    addMessage('user', escHtml(queryText));
+    input.value = '';
+    input.style.height = 'auto';
+    await runRegenerate({
+      conversation_id: edit.conversation_id,
+      message_index: edit.message_index,
+      mode: 'edit',
+      query: queryText,
+    });
+    ChatState.isStreaming = false;
+    btn.disabled = false;
+    document.getElementById('stopBtn').style.display = 'none';
+    input.focus();
+    return;
+  }
+
   // 正常对话流程
   addMessage('user', escHtml(queryText));
   input.value = '';
@@ -792,6 +816,73 @@ async function processStreamResponse(res) {
       } catch (e) { /* ignore */ }
     }
   }
+}
+
+/** 截断聊天界面：移除序号 idx 及之后的消息与相位徽标（重新生成/编辑重发用） */
+function truncateUIFrom(idx) {
+  const msgs = document.getElementById('chatMessages');
+  if (!msgs) return;
+  msgs.querySelectorAll('.message').forEach(el => {
+    if (parseInt(el.dataset.idx || '-1', 10) >= idx) el.remove();
+  });
+  msgs.querySelectorAll('.phase-badge, .status-bar, .thinking-panel').forEach(el => el.remove());
+}
+
+/** 调用 /chat/regenerate 并以流式方式渲染新回复 */
+async function runRegenerate(payload) {
+  ChatState.isStreaming = true;
+  const btn = document.getElementById('sendBtn');
+  if (btn) btn.disabled = true;
+  document.getElementById('stopBtn').style.display = '';
+  try {
+    const res = await nanobuddyFetch('/chat/regenerate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const t = await res.text().catch(() => '');
+      throw new Error(`服务器返回 ${res.status}${t ? '：' + t.slice(0, 120) : ''}`);
+    }
+    const newSessionId = res.headers.get('X-Session-Id');
+    if (newSessionId) ChatState.sessionId = newSessionId;
+    const newConvId = res.headers.get('X-Conversation-Id');
+    if (newConvId) { ChatState.currentConvId = newConvId; ChatState.conversationId = newConvId; }
+    await processStreamResponse(res);
+  } catch (e) {
+    toast(`重新生成失败: ${e.message}`, 'error');
+  } finally {
+    ChatState.isStreaming = false;
+    if (btn) btn.disabled = false;
+    document.getElementById('stopBtn').style.display = 'none';
+  }
+}
+
+/** 助手消息：重新生成（以该回复对应的用户提问重跑） */
+async function regenerateMessage(btn) {
+  if (ChatState.isStreaming) { toast('正在生成中，请先停止', 'error'); return; }
+  const msgDiv = btn.closest('.message');
+  const idx = parseInt(msgDiv?.dataset.idx || '-1', 10);
+  const convId = ChatState.currentConvId;
+  if (!convId || idx < 0) { toast('请先加载一段对话', 'error'); return; }
+  truncateUIFrom(idx);
+  await runRegenerate({ conversation_id: convId, message_index: idx, mode: 'regenerate' });
+}
+
+/** 用户消息：编辑并重发（填回输入框，修改后发送即以新内容重跑） */
+function editResendMessage(btn) {
+  if (ChatState.isStreaming) { toast('正在生成中，请先停止', 'error'); return; }
+  const msgDiv = btn.closest('.message');
+  const idx = parseInt(msgDiv?.dataset.idx || '-1', 10);
+  const convId = ChatState.currentConvId;
+  if (!convId || idx < 0) { toast('请先加载一段对话', 'error'); return; }
+  const bubble = msgDiv.querySelector('.bubble');
+  const input = document.getElementById('chatInput');
+  input.value = bubble?.textContent || '';
+  input.focus();
+  autoResizeInput(input);
+  ChatState.pendingEdit = { conversation_id: convId, message_index: idx };
+  toast('已填回输入框，修改后发送即以新内容重跑', 'success');
 }
 
 /** 处理单个流式事件 */
@@ -1335,11 +1426,16 @@ function addMessage(role, html) {
   const msgs = document.getElementById('chatMessages');
   const div = document.createElement('div');
   div.className = `message ${role}`;
+  div.dataset.idx = msgs.querySelectorAll('.message').length;
   const avatarHtml = role === 'user' ? _dualIcon('', 'fa-user') : _dualIcon('', 'fa-robot');
+  const actionHtml = role === 'user'
+    ? `<button class="msg-action-btn" onclick="editResendMessage(this)" title="编辑并重发">${_dualIcon('', 'fa-pen-to-square')}</button>`
+    : `<button class="msg-action-btn" onclick="regenerateMessage(this)" title="重新生成">${_dualIcon('', 'fa-rotate-right')}</button>`;
   div.innerHTML = `
     <div class="avatar">${avatarHtml}</div>
     <div class="bubble">${html}</div>
     <button class="copy-btn" onclick="copyMessage(this)" title="复制内容">${_dualIcon('', 'fa-copy')}</button>
+    ${actionHtml}
   `;
   msgs.appendChild(div);
   autoScroll(msgs);
@@ -1793,6 +1889,8 @@ window.closeDropdownHandler = closeDropdownHandler;
 window.autoResizeInput = autoResizeInput;
 window.handleFileSelect = handleFileSelect;
 window.copyMessage = copyMessage;
+window.regenerateMessage = regenerateMessage;
+window.editResendMessage = editResendMessage;
 window.addMessage = addMessage;
 window.addPhase = addPhase;
 window.activateSkill = activateSkill;
