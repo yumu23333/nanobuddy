@@ -20,6 +20,8 @@ ROLES = frozenset({"admin", "member", "readonly"})
 
 _JWT_SECRET_FILE = Path(__file__).resolve().parent.parent.parent / "data" / "security" / "jwt_secret"
 _jwt_secret_runtime: str | None = None
+# HS256 建议的密钥下限（字节）；低于该值仅告警不拦截（更换会使已颁发 token 失效）
+_JWT_MIN_SECRET_BYTES = 32
 
 
 @dataclass(frozen=True)
@@ -60,6 +62,14 @@ def _jwt_settings() -> tuple[str, int]:
         raw = resolve_env_ref(raw)
     secret = (raw or "").strip() or _read_or_create_jwt_secret()
     hours = int(sec.get("jwt_expire_hours", 72))
+    if len(secret.encode("utf-8")) < _JWT_MIN_SECRET_BYTES:
+        logger.warning(
+            "JWT 密钥仅 {} 字节，低于建议的 {} 字节（HS256 安全下限）："
+            "请更新 NANOBUDDY_JWT_SECRET 或 security.jwt_secret 为更长的随机串；"
+            "注意更换后已颁发的 token 将全部失效，需重新登录",
+            len(secret.encode("utf-8")),
+            _JWT_MIN_SECRET_BYTES,
+        )
     return secret, hours
 
 

@@ -608,7 +608,12 @@ async def connect_mcp_servers(
                     " Hint: this looks like stdio protocol pollution. Make sure the MCP server writes "
                     "only JSON-RPC to stdout and sends logs/debug output to stderr instead."
                 )
-            logger.error("MCP server '{}': failed to connect: {}{}", name, e, hint)
+            # 第三方 MCP 属可选扩展（如缺 node 依赖），连接失败不阻塞核心功能，降为 WARNING
+            logger.warning(
+                "MCP server '{}': failed to connect: {}{}（第三方 MCP 为可选扩展，"
+                "不影响核心功能；修复后可在设置页重连）",
+                name, e, hint,
+            )
             with suppress(Exception):
                 await server_stack.aclose()
             return name, None

@@ -57,6 +57,20 @@ def login(req: LoginRequest, request: Request):
 
 @router.get("/me")
 def auth_me(user: CurrentUser = Depends(get_current_user)):
+    # 虚拟身份（localhost 免鉴权 / guest / service）不在用户表中，
+    # 返回合成信息而非 401，便于前端统一读取当前账号
+    if user.id in ("localhost", "guest", "anonymous", "service"):
+        return {"user": {
+            "id": user.id,
+            "username": user.username,
+            "display_name": {"localhost": "本机管理员", "guest": "访客",
+                             "service": "服务账号"}.get(user.id, user.username),
+            "role": user.role,
+            "is_active": True,
+            "created_at": None,
+            "last_login_at": None,
+            "virtual": True,
+        }}
     row = get_db().get_user_by_id(user.id)
     if not row or not row.get("is_active"):
         raise HTTPException(401, "账号已禁用或不存在")

@@ -52,6 +52,13 @@ async def lifespan(app: FastAPI):
             sec.auth_mode,
             sec.allow_localhost_without_auth,
         )
+        # 启动时校验 JWT 密钥强度（过短仅告警；内部按需自动生成强密钥）
+        try:
+            from core.security.users import _jwt_settings
+
+            _jwt_settings()
+        except Exception as e:
+            logger.warning("JWT 密钥校验失败: {}", e)
     else:
         logger.warning("API 鉴权未启用：请在 config.yaml 的 security 段配置")
 
