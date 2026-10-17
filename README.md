@@ -104,13 +104,11 @@ git lfs pull
 
 
 
-用记事本打开项目根目录 **`.env`**，至少改这两项：
+用记事本打开项目根目录 **`.env`**，至少改这一项（模型 API Key 不在这里填，见下方说明）：
 
 
 
 ```env
-
-DEEPSEEK_API_KEY=sk-你的DeepSeek密钥
 
 NANOBUDDY_ADMIN_PASSWORD=你想设置的管理员密码
 
@@ -119,6 +117,10 @@ NANOBUDDY_ADMIN_PASSWORD=你想设置的管理员密码
 
 
 保存后关闭。其他项可暂时留空；启动时若提示某环境变量未设置，多为可选项，补全 `.env` 后重启即可。
+
+
+
+**模型 API Key（DeepSeek 等）不填在 `.env`**：启动软件后，打开左侧 **设置 → 模型配置**，在页面中填写并保存即可，保存后立即生效、无需重启；首次进入该页面也会有引导提示。
 
 
 
@@ -196,7 +198,7 @@ NANOBUDDY_ADMIN_PASSWORD=你想设置的管理员密码
 
 |------|------|----------------|
 
-| `.env` | API Key、管理员密码、JWT 密钥 | 否（本地私密） |
+| `.env` | 管理员密码、JWT 密钥等；模型 API Key 已在设置页填写，不经过 `.env` | 否（本地私密） |
 
 | `config.yaml` | 模型、MCP、安全策略 | 否（从 `config.example.yaml` 复制） |
 
@@ -280,7 +282,7 @@ A：本仓库自带的离线 wheel 是 **3.12**。若你只有 3.10/3.11，可�
 
 **Q：启动后一堆「环境变量未设置」警告？**  
 
-A：在 `.env` 补 `DEEPSEEK_API_KEY` 等；飞书、OpenAI 不用可忽略。
+A：`DEEPSEEK_API_KEY` 未设置的警告可忽略——启动后在 **设置 → 模型配置** 页面填写即生效；飞书、OpenAI 等不用可忽略。
 
 
 
