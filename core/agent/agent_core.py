@@ -276,6 +276,20 @@ def _repair_json(text: str) -> Optional[str]:
     return None
 
 
+def format_knowledge_context(sources: list[dict]) -> str:
+    """把结构化检索结果格式化为系统提示词用的参考资料文本。
+
+    片段带【来源N】序号，与提示词中的引用标注约定一一对应。
+    """
+    if not sources:
+        return ""
+    parts = []
+    for i, s in enumerate(sources, 1):
+        doc = s.get("doc") or "未知文档"
+        parts.append(f"[知识片段 {i}] 来源: {doc}\n{s.get('snippet', '')}")
+    return "\n\n" + "\n---\n".join(parts)
+
+
 class CoreAgent:
     """nanobuddy 核心引擎 —— ReAct 循环 + 并行工具 + 流式输出 + RAG"""
     
@@ -331,37 +345,43 @@ class CoreAgent:
         """执行上下文压缩：剪枝工具结果"""
         return _prune_tool_results(messages)
 
-    def _get_knowledge_context(self, query: str) -> str:
-        """从知识库检索相关上下文"""
-        if not self.use_knowledge:
-            return ""
+    def _search_knowledge(self, query: str) -> list[dict]:
+        """检索知识库，返回结构化来源列表。
 
+        每项：{doc, doc_id, snippet, score}。未启用 / Ollama 不可用 /
+        库为空 / 检索异常时返回空列表（不影响主对话流程）。
+        """
+        if not self.use_knowledge:
+            return []
         try:
             # 快速检查 Ollama 是否可用，不可用则跳过知识库
             try:
                 import requests as _req
                 _req.get("http://localhost:11434/api/tags", timeout=1)
             except Exception:
-                return ""
+                return []
 
             vs = get_vector_store()
             if vs.count() == 0:
-                return ""
+                return []
             results = vs.search(query, n_results=self.knowledge_top_k)
-            if not results:
-                return ""
-
-            parts = []
-            for i, r in enumerate(results, 1):
-                meta = r.get("metadata", {})
-                source = meta.get("file_name", "未知文档")
-                parts.append(
-                    f"[知识片段 {i}] 来源: {source}\n{r['content'][:600]}"
-                )
-            return "\n\n" + "\n---\n".join(parts)
+            sources = []
+            for r in results or []:
+                meta = r.get("metadata") or {}
+                sources.append({
+                    "doc": meta.get("file_name", "未知文档"),
+                    "doc_id": meta.get("doc_id", ""),
+                    "snippet": (r.get("content") or "")[:600],
+                    "score": r.get("score", 0),
+                })
+            return sources
         except Exception as e:
             logger.debug("Knowledge retrieval failed: %s", e)
-            return ""
+            return []
+
+    def _get_knowledge_context(self, query: str) -> str:
+        """从知识库检索相关上下文（格式化文本，供系统提示词）"""
+        return format_knowledge_context(self._search_knowledge(query))
 
     def _build_tool_prompt(self) -> str:
         tools_info = list_tools(self.enabled_tools)
@@ -508,15 +528,21 @@ class CoreAgent:
             system_prompt += "\n\n" + tool_prompt
         messages = [{"role": "system", "content": system_prompt}]
 
-        knowledge_ctx = self._get_knowledge_context(user_query)
-        if knowledge_ctx:
+        knowledge_sources = self._search_knowledge(user_query)
+        if knowledge_sources:
+            knowledge_ctx = format_knowledge_context(knowledge_sources)
             context_msg = (
                 f"以下是知识库中与用户问题可能相关的参考资料：\n"
                 f"{knowledge_ctx}\n\n"
-                f"请参考以上资料回答用户问题，如果资料不相关则忽略。"
+                f"请参考以上资料回答用户问题；引用资料内容时请在句末标注【来源N】"
+                f"（N 为资料序号），如果资料不相关则忽略。"
             )
             messages.append({"role": "system", "content": context_msg})
-            yield {"phase": "knowledge", "context": knowledge_ctx[:200]}
+            yield {
+                "phase": "knowledge",
+                "context": knowledge_ctx[:200],
+                "sources": knowledge_sources,
+            }
 
         # 注入上传文件上下文
         file_ctx = self._get_file_context(files or [])

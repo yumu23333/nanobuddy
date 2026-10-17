@@ -389,6 +389,32 @@ body {
   border-color: var(--primary);
 }
 
+/* 知识库检索来源标注 */
+.kb-sources {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 8px 44px;
+  font-size: 12px;
+}
+.kb-sources-label {
+  color: var(--text-muted);
+}
+.kb-source-item {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: help;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .message .bubble pre {
   background: #0f172a;
   color: #e2e8f0;

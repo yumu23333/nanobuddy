@@ -893,6 +893,14 @@ function processStreamEvent(evt, ctx) {
   switch (evt.phase) {
     case 'knowledge':
       phaseDiv = addPhase('📖 已检索知识库', 'knowledge');
+      if (evt.sources && evt.sources.length) {
+        const srcBox = document.createElement('div');
+        srcBox.className = 'kb-sources';
+        srcBox.innerHTML = '<span class="kb-sources-label">来源：</span>' + evt.sources.map((s, i) =>
+          `<span class="kb-source-item" title="${escHtml((s.snippet || '').slice(0, 200))}">${i + 1}. ${escHtml(s.doc || '未知文档')}</span>`
+        ).join('');
+        msgs.appendChild(srcBox);
+      }
       break;
 
     case 'think_token':
