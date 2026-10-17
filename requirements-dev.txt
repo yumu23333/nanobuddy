@@ -1,0 +1,2 @@
+# 开发/测试环境依赖（生产部署用 requirements.txt，勿混用）
+pytest>=8.0
