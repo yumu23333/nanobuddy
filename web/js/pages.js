@@ -152,6 +152,9 @@ async function loadKbDocs() {
   }
 }
 
+let kbIndexing = false;
+let kbPollTimer = null;
+
 async function indexFromInput() {
   const pathInput = PAGES_DOM.kbPath();
   if (!pathInput) return;
@@ -160,31 +163,92 @@ async function indexFromInput() {
     toast('请输入文件或文件夹路径', 'error');
     return;
   }
+  if (kbIndexing) return;
 
   const btn = document.querySelector('#page-knowledge .btn-primary');
   const cancelBtn = PAGES_DOM.kbCancelBtn();
   if (btn) { btn.disabled = true; btn.textContent = '⏳ 索引中...'; }
   if (cancelBtn) cancelBtn.style.display = 'inline-flex';
+  showKbProgress();
 
-  try {
-    const d = await nanobuddyFetch('/api/knowledge/index', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path, recursive: true }),
-    }).then(r => r.json());
+  kbIndexing = true;
+  startKbPoll();
 
-    if (d.status === 'ok') {
-      const count = d.result ? (d.result.chunk_count || d.result.success || 0) : 0;
-      toast(`✅ 索引完成！处理了 ${count} 个文件块`, 'success');
-      await Promise.all([loadKbStats(), loadKbDocs()]);
-    } else {
-      toast('索引失败: ' + JSON.stringify(d), 'error');
-    }
-  } catch (e) {
-    toast('请求失败: ' + e.message, 'error');
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '📥 索引到知识库'; }
-    if (cancelBtn) cancelBtn.style.display = 'none';
+  // 后台触发索引（不阻塞轮询）
+  nanobuddyFetch('/api/knowledge/index', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path, recursive: true }),
+  })
+    .then(r => r.json())
+    .then(d => {
+      if (d.status === 'ok') {
+        const count = d.result ? (d.result.chunk_count || d.result.success || 0) : 0;
+        toast(`✅ 索引完成！处理了 ${count} 个文件块`, 'success');
+      } else {
+        toast('索引失败: ' + JSON.stringify(d), 'error');
+      }
+    })
+    .catch(e => {
+      toast('请求失败: ' + e.message, 'error');
+    })
+    .finally(() => {
+      kbIndexing = false;
+      stopKbPoll();
+      hideKbProgress();
+      if (btn) { btn.disabled = false; btn.textContent = '📥 索引到知识库'; }
+      if (cancelBtn) cancelBtn.style.display = 'none';
+      Promise.all([loadKbStats(), loadKbDocs()]);
+    });
+}
+
+function startKbPoll() {
+  stopKbPoll();
+  kbPollTimer = setInterval(async () => {
+    try {
+      const d = await nanobuddyFetch('/api/knowledge/index-progress').then(r => r.json());
+      if (!d.is_indexing) {
+        // 还未开始或已结束（结束由 finally 统一处理）
+        if (!kbIndexing) hideKbProgress();
+        return;
+      }
+      updateKbProgress(d);
+    } catch {}
+  }, 700);
+}
+
+function stopKbPoll() {
+  if (kbPollTimer) {
+    clearInterval(kbPollTimer);
+    kbPollTimer = null;
+  }
+}
+
+function showKbProgress() {
+  const box = document.getElementById('kbProgress');
+  const fill = document.getElementById('kbProgressFill');
+  const text = document.getElementById('kbProgressText');
+  if (box) box.style.display = 'block';
+  if (fill) fill.style.width = '0%';
+  if (text) text.textContent = '准备中…';
+}
+
+function hideKbProgress() {
+  const box = document.getElementById('kbProgress');
+  if (box) box.style.display = 'none';
+}
+
+function updateKbProgress(d) {
+  const fill = document.getElementById('kbProgressFill');
+  const text = document.getElementById('kbProgressText');
+  const total = d.total || 0;
+  const done = d.done || 0;
+  const pct = total > 0 ? Math.floor((done / total) * 100) : 0;
+  if (fill) fill.style.width = pct + '%';
+  if (text) {
+    const phase = d.phase === 'scanning' ? '扫描文件' : '索引中';
+    const cur = d.current_file ? ` · ${d.current_file}` : '';
+    text.textContent = `${phase}：${done}/${total}（${pct}%）${(cur).slice(0, 40)}`;
   }
 }
 

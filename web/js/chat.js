@@ -725,7 +725,7 @@ async function sendChat() {
   }
 
   // 正常对话流程
-  addMessage('user', escHtml(queryText));
+  addUserMessageWithFiles(queryText, files);
   input.value = '';
   input.style.height = 'auto';
 
@@ -1452,6 +1452,21 @@ function addMessage(role, html) {
   msgs.appendChild(div);
   autoScroll(msgs);
   return div.querySelector('.bubble');
+}
+
+function addUserMessageWithFiles(text, files) {
+  const bubble = addMessage('user', escHtml(text));
+  if (bubble && files && files.length) {
+    const chips = files.map(f => {
+      const name = f.split('/').pop().split('\\').pop();
+      return `<span class="file-chip">${_dualIcon('📎', 'fa-paperclip')} ${escHtml(name)}</span>`;
+    }).join('');
+    const wrap = document.createElement('div');
+    wrap.className = 'file-chips';
+    wrap.innerHTML = chips;
+    bubble.appendChild(wrap);
+  }
+  return bubble;
 }
 
 function addPhase(label, cls) {

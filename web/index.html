@@ -365,6 +365,10 @@
               </span>
             </div>
           </div>
+          <div class="ht-search">
+            <i class="icon-fa fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="htSearchInput" placeholder="搜索对话标题…" oninput="filterHistory()" />
+          </div>
           <div class="ht-toolbar" id="htToolbar" style="display:none">
             <button class="btn btn-sm btn-outline" onclick="selectAllHistory()">全选</button>
             <button class="btn btn-sm btn-danger" onclick="deleteSelected()">
@@ -543,6 +547,10 @@
             <button class="btn btn-danger" id="kbCancelBtn" onclick="cancelIndexing()" style="display:none;flex-shrink:0">
               <i class="icon-fa fa-solid fa-stop"></i> 终止检索
             </button>
+          </div>
+          <div class="kb-progress" id="kbProgress" style="display:none">
+            <div class="kb-progress-bar"><div class="kb-progress-fill" id="kbProgressFill"></div></div>
+            <div class="kb-progress-text" id="kbProgressText">准备中…</div>
           </div>
         </section>
 

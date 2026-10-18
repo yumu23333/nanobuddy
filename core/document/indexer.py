@@ -29,6 +29,7 @@ class FileIndexer:
     def __init__(self, max_workers: int = DEFAULT_MAX_WORKERS):
         self._indexing = set()                # 正在处理的任务路径（用于状态查询）
         self._cancel_flags = {}               # 取消标记
+        self._progress = {}                   # 任务路径 -> 进度快照
         self._lock = threading.Lock()
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
 
@@ -38,6 +39,25 @@ class FileIndexer:
             if path:
                 return path in self._indexing
             return bool(self._indexing)
+
+    def get_progress(self, path: str = ""):
+        """返回进度快照：{total, done, current_file, phase}；无任务时返回 None"""
+        with self._lock:
+            if path:
+                return self._progress.get(path)
+            if not self._progress:
+                return None
+            total = sum(p["total"] for p in self._progress.values())
+            done = sum(p["done"] for p in self._progress.values())
+            current_file = next(
+                (p["current_file"] for p in self._progress.values()
+                 if p.get("phase") == "indexing"),
+                "",
+            )
+            phase = "indexing" if any(
+                p.get("phase") == "indexing" for p in self._progress.values()
+            ) else "scanning"
+            return {"total": total, "done": done, "current_file": current_file, "phase": phase}
 
     def cancel_indexing(self, path: str = ""):
         with self._lock:
@@ -63,26 +83,40 @@ class FileIndexer:
         """索引单个文件（立即提交，适合独立使用）"""
         abs_path = os.path.abspath(file_path)
 
-        # 1. 快速跳过检查（基于文件修改时间与大小）
-        skip_reason = self._should_skip(abs_path)
-        if skip_reason == "unchanged":
-            logger.debug("Skipping unchanged: %s", abs_path)
-            existing = get_db().get_document_by_path(abs_path)
-            return existing
-        elif skip_reason == "unsupported":
-            return None
+        with self._lock:
+            self._indexing.add(abs_path)
+            self._progress[abs_path] = {
+                "total": 1, "done": 0, "current_file": os.path.basename(abs_path),
+                "phase": "indexing",
+            }
 
-        # 2. 解析与向量化（核心逻辑）
-        result = self._index_file_core(abs_path, chunk_size, chunk_overlap)
-        if result is None:
-            return None
+        try:
+            # 1. 快速跳过检查（基于文件修改时间与大小）
+            skip_reason = self._should_skip(abs_path)
+            if skip_reason == "unchanged":
+                logger.debug("Skipping unchanged: %s", abs_path)
+                existing = get_db().get_document_by_path(abs_path)
+                return existing
+            elif skip_reason == "unsupported":
+                return None
 
-        # 3. 提交（单条提交）
-        self._commit_document(result, delete_old=True)
-        logger.info("Indexed: %s (%d chunks)", result["file_name"], result["chunk_count"])
-        if progress_callback:
-            progress_callback(abs_path, "ok")
-        return result
+            # 2. 解析与向量化（核心逻辑）
+            result = self._index_file_core(abs_path, chunk_size, chunk_overlap)
+            if result is None:
+                return None
+
+            # 3. 提交（单条提交）
+            self._commit_document(result, delete_old=True)
+            logger.info("Indexed: %s (%d chunks)", result["file_name"], result["chunk_count"])
+            with self._lock:
+                self._progress[abs_path]["done"] = 1
+            if progress_callback:
+                progress_callback(abs_path, "ok")
+            return result
+        finally:
+            with self._lock:
+                self._indexing.discard(abs_path)
+                self._progress.pop(abs_path, None)
 
     # ---------- 批量索引目录 ----------
     def index_directory(
@@ -106,12 +140,19 @@ class FileIndexer:
             self._indexing.add(abs_path)
             self._cancel_flags[abs_path] = False
 
+        # 先扫描全部支持的文件，确定总数（用于进度条）
+        all_files = list(self._walk_files(abs_path, recursive))
+        with self._lock:
+            self._progress[abs_path] = {
+                "total": len(all_files), "done": 0, "current_file": "",
+                "phase": "scanning" if all_files else "indexing",
+            }
+
         results = {"total": 0, "success": 0, "failed": 0, "files": []}
-        file_generator = self._walk_files(abs_path, recursive)
 
         # 分批处理
         batch = []
-        for file_path in file_generator:
+        for file_path in all_files:
             if self._is_cancelled(abs_path):
                 break
             batch.append(file_path)
@@ -128,6 +169,7 @@ class FileIndexer:
         with self._lock:
             self._indexing.discard(abs_path)
             self._cancel_flags.pop(abs_path, None)
+            self._progress.pop(abs_path, None)
 
         return results
 
@@ -373,6 +415,12 @@ class FileIndexer:
                 # 取消剩余未完成的任务（但不强制终止）
                 break
             fp = futures[future]
+            with self._lock:
+                prog = self._progress.get(task_id)
+                if prog is not None:
+                    prog["done"] = prog.get("done", 0) + 1
+                    prog["current_file"] = os.path.basename(fp)
+                    prog["phase"] = "indexing"
             try:
                 doc_data = future.result()
                 if doc_data:

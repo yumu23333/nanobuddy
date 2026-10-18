@@ -337,6 +337,28 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
+.file-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 12px;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 6px;
+  color: var(--primary);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .message .copy-btn {
   position: absolute;
   top: 8px;
@@ -1575,6 +1597,53 @@ body {
   color: var(--text-secondary);
   margin-top: 2px;
 }
+.ht-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--border-light);
+  flex-shrink: 0;
+}
+.ht-search i {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+.ht-search input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+}
+.ht-search input:focus {
+  border-color: var(--primary);
+}
+.ht-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+.ht-act {
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 3px;
+  border-radius: 4px;
+  opacity: 0.7;
+  transition: opacity var(--transition), background var(--transition);
+}
+.ht-act:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.08);
+}
 
 .ht-toolbar {
   padding: 8px 14px;
@@ -2080,6 +2149,34 @@ body {
 .kb-index-row input[type="text"]:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+.kb-progress {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.kb-progress-bar {
+  height: 8px;
+  background: var(--border-light);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.kb-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--primary), #60a5fa);
+  border-radius: 6px;
+  transition: width 0.4s ease;
+}
+.kb-progress-text {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .kb-search-bar {
   display: flex;

@@ -13,6 +13,7 @@ const HISTORY_CONFIG = {
 
 const HistoryState = {
   isMultiSelect: false,
+  allConvs: [],
   splitReader: null,
   splitThinking: null,
   splitThinkingBody: null,
@@ -59,30 +60,93 @@ async function loadHistory() {
   try {
     const res = await nanobuddyFetch('/api/conversations');
     const data = await res.json();
-    const arr = data.conversations || [];
+    HistoryState.allConvs = data.conversations || [];
 
-    if (!arr.length) {
-      list.innerHTML = '<div style="text-align:center;padding:30px;color:#999">暂无对话</div>';
-      return;
-    }
-
-    list.innerHTML = arr.map(c => {
-      const cb = HistoryState.isMultiSelect
-        ? `<input type="checkbox" class="ht-checkbox" value="${c.id}">`
-        : '';
-      const clickAttr = HistoryState.isMultiSelect
-        ? ' onclick="event.stopPropagation();const cb=this.querySelector(\'.ht-checkbox\');if(cb)cb.checked=!cb.checked;"'
-        : ` onclick="loadConv('${c.id}')"`;
-      return `<div class="ht-item"${clickAttr} oncontextmenu="showCtx(event,'${c.id}')">
-        ${cb}
-        <div class="ht-info">
-          <div class="ht-name">${escHtml(c.title || '新对话')}</div>
-          <div class="ht-time">${c.message_count || 0}条 · ${c.updated_at || ''}</div>
-        </div>
-      </div>`;
-    }).join('');
+    renderHistory(HistoryState.allConvs);
   } catch {
     list.innerHTML = '<div style="padding:20px;color:#999">加载失败</div>';
+  }
+}
+
+function renderHistory(arr) {
+  const list = HistoryDOM.list;
+  if (!list) return;
+
+  if (!arr.length) {
+    const kw = (document.getElementById('htSearchInput')?.value || '').trim();
+    list.innerHTML = `<div style="text-align:center;padding:30px;color:#999">${kw ? '无匹配对话' : '暂无对话'}</div>`;
+    return;
+  }
+
+  list.innerHTML = arr.map(c => {
+    const cb = HistoryState.isMultiSelect
+      ? `<input type="checkbox" class="ht-checkbox" value="${c.id}">`
+      : '';
+    const clickAttr = HistoryState.isMultiSelect
+      ? ' onclick="event.stopPropagation();const cb=this.querySelector(\'.ht-checkbox\');if(cb)cb.checked=!cb.checked;"'
+      : ` onclick="loadConv('${c.id}')"`;
+    const pinned = c.pinned ? ' 📌' : '';
+    const pinBtn = c.pinned
+      ? `<span class="ht-act" title="取消置顶" onclick="event.stopPropagation();togglePin('${c.id}',0)">📌</span>`
+      : `<span class="ht-act" title="置顶" onclick="event.stopPropagation();togglePin('${c.id}',1)">📍</span>`;
+    return `<div class="ht-item"${clickAttr} oncontextmenu="showCtx(event,'${c.id}')">
+      ${cb}
+      <div class="ht-info">
+        <div class="ht-name">${escHtml(c.title || '新对话')}${pinned}</div>
+        <div class="ht-time">${c.message_count || 0}条 · ${c.updated_at || ''}</div>
+      </div>
+      <div class="ht-actions">
+        ${pinBtn}
+        <span class="ht-act" title="重命名" onclick="event.stopPropagation();renameConv('${c.id}')">✏️</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterHistory() {
+  const kw = (document.getElementById('htSearchInput')?.value || '').trim().toLowerCase();
+  if (!kw) {
+    renderHistory(HistoryState.allConvs);
+    return;
+  }
+  const filtered = HistoryState.allConvs.filter(c =>
+    (c.title || '新对话').toLowerCase().includes(kw)
+  );
+  renderHistory(filtered);
+}
+
+async function renameConv(convId) {
+  const conv = HistoryState.allConvs.find(c => c.id === convId);
+  const oldTitle = conv?.title || '新对话';
+  const title = prompt('重命名对话', oldTitle);
+  if (title === null) return;
+  const newTitle = title.trim();
+  if (!newTitle) {
+    toast('标题不能为空', 'error');
+    return;
+  }
+  try {
+    await nanobuddyFetch(`/api/conversations/${convId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: newTitle }),
+    });
+    loadHistory();
+  } catch {
+    toast('重命名失败', 'error');
+  }
+}
+
+async function togglePin(convId, pinned) {
+  try {
+    await nanobuddyFetch(`/api/conversations/${convId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pinned }),
+    });
+    loadHistory();
+  } catch {
+    toast('操作失败', 'error');
   }
 }
 
@@ -609,4 +673,7 @@ window.selectAllHistory = selectAllHistory;
 window.getSelectedIds = getSelectedIds;
 window.deleteSelected = deleteSelected;
 window.deleteAllHistory = deleteAllHistory;
+window.filterHistory = filterHistory;
+window.renameConv = renameConv;
+window.togglePin = togglePin;
 window.HistoryState = HistoryState;

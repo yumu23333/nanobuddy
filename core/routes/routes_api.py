@@ -102,6 +102,22 @@ def check_indexing():
     return {"is_indexing": indexer.is_indexing()}
 
 
+@router.get("/knowledge/index-progress")
+def index_progress():
+    """查询当前索引进度：{is_indexing, total, done, current_file, phase}"""
+    indexer = get_indexer()
+    prog = indexer.get_progress()
+    if prog is None:
+        return {"is_indexing": False, "total": 0, "done": 0, "current_file": "", "phase": ""}
+    return {
+        "is_indexing": True,
+        "total": prog.get("total", 0),
+        "done": prog.get("done", 0),
+        "current_file": prog.get("current_file", ""),
+        "phase": prog.get("phase", "indexing"),
+    }
+
+
 @router.post("/knowledge/clear")
 def clear_knowledge():
     """清空整个知识库(删除并重建向量集)"""
@@ -709,6 +725,28 @@ def delete_conversation(conv_id: str, user: CurrentUser = Depends(get_current_us
     except Exception:
         logger.debug("删除会话文件失败", exc_info=True)
     return {"status": "ok", "message": "对话已删除"}
+
+
+class ConversationUpdate(BaseModel):
+    title: str | None = None
+    pinned: int | None = None
+
+
+@router.put("/conversations/{conv_id}")
+def update_conversation(conv_id: str, body: ConversationUpdate, user: CurrentUser = Depends(get_current_user)):
+    """更新会话：重命名(title) 与/或 置顶(pinned: 1/0)"""
+    _assert_conv_access(conv_id, user)
+    if body.title is None and body.pinned is None:
+        raise HTTPException(400, "至少需要提供 title 或 pinned 之一")
+    if body.title is not None and not body.title.strip():
+        raise HTTPException(400, "标题不能为空")
+    db = get_db()
+    db.update_conversation(
+        conv_id,
+        title=body.title.strip() if body.title is not None else None,
+        pinned=body.pinned,
+    )
+    return {"status": "ok", "message": "对话已更新"}
 
 
 # ──────────── 设置接口 ────────────

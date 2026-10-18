@@ -205,6 +205,12 @@ class Database:
                 "ON conversations(owner_user_id, updated_at)"
             )
             conn.commit()
+        # pinned 列（置顶功能）：旧库需补齐
+        if "pinned" not in cols:
+            conn.execute(
+                "ALTER TABLE conversations ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0"
+            )
+            conn.commit()
         # documents 表的 mtime 列（用于索引增量跳过），旧库需补齐
         doc_cols = {r[1] for r in conn.execute("PRAGMA table_info(documents)").fetchall()}
         if "mtime" not in doc_cols:
@@ -365,15 +371,15 @@ class Database:
         conn = self._get_conn()
         if owner_user_id is not None:
             rows = conn.execute(
-                "SELECT id, title, created_at, updated_at, message_count, owner_user_id "
+                "SELECT id, title, created_at, updated_at, message_count, owner_user_id, pinned "
                 "FROM conversations WHERE owner_user_id = ? "
-                "ORDER BY updated_at DESC LIMIT ?",
+                "ORDER BY pinned DESC, updated_at DESC LIMIT ?",
                 (owner_user_id, limit),
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT id, title, created_at, updated_at, message_count, owner_user_id "
-                "FROM conversations ORDER BY updated_at DESC LIMIT ?",
+                "SELECT id, title, created_at, updated_at, message_count, owner_user_id, pinned "
+                "FROM conversations ORDER BY pinned DESC, updated_at DESC LIMIT ?",
                 (limit,),
             ).fetchall()
         return [dict(r) for r in rows]
@@ -381,7 +387,7 @@ class Database:
     def get_conversation(self, conv_id: str) -> Optional[dict]:
         conn = self._get_conn()
         row = conn.execute(
-            "SELECT id, title, created_at, updated_at, message_count, owner_user_id "
+            "SELECT id, title, created_at, updated_at, message_count, owner_user_id, pinned "
             "FROM conversations WHERE id = ?",
             (conv_id,),
         ).fetchone()
@@ -409,6 +415,29 @@ class Database:
             (title, time.time(), conv_id),
         )
         conn.commit()
+
+    def update_conversation(self, conv_id: str, title: str | None = None, pinned: int | None = None):
+        """更新会话标题与/或置顶状态（pinned: 1 置顶，0 取消）"""
+        conn = self._get_conn()
+        sets: list[str] = []
+        values: list = []
+        if title is not None:
+            sets.append("title = ?")
+            values.append(title)
+        if pinned is not None:
+            sets.append("pinned = ?")
+            values.append(int(pinned))
+        if not sets:
+            return False
+        sets.append("updated_at = ?")
+        values.append(time.time())
+        values.append(conv_id)
+        conn.execute(
+            f"UPDATE conversations SET {', '.join(sets)} WHERE id = ?",
+            values,
+        )
+        conn.commit()
+        return True
 
     def add_message(self, conv_id: str, role: str, content: str):
         now = time.time()
