@@ -125,6 +125,7 @@ class ChatRequest(BaseModel):
     session_id: str = Field(default="", description="会话ID")
     conversation_id: str = Field(default="", description="对话ID")
     files: list[str] = Field(default=[], description="已上传文件路径")
+    model: str = Field(default="", description="按会话覆盖的对话模型（空串=使用全局默认）")
 
 
 class ResetRequest(BaseModel):
@@ -137,6 +138,7 @@ class RegenerateRequest(BaseModel):
     mode: str = Field(default="regenerate", description="regenerate=重新生成助手回复；edit=编辑用户消息重发")
     query: str = Field(default="", description="edit 模式下编辑后的新文本")
     session_id: str = Field(default="", description="会话ID（兼容旧字段）")
+    model: str = Field(default="", description="按会话覆盖的对话模型（空串=使用全局默认）")
 
 
 # ── 前端页面 ──
@@ -171,6 +173,18 @@ def home():
 
 # ── 对话接口 ──
 
+
+def _persist_conversation_model(conv_id: str, model: str):
+    """若请求带了会话级模型覆盖，则落库到 conversations.model（空串不覆盖、不清空）"""
+    if not conv_id or not model:
+        return
+    try:
+        from core.database.db import get_db
+        get_db().update_conversation(conv_id, model=model)
+    except Exception:
+        logger.debug("写入会话模型失败", exc_info=True)
+
+
 @app.post("/chat")
 async def chat(req: ChatRequest, request: Request):
     adapter = await get_adapter()
@@ -184,7 +198,8 @@ async def chat(req: ChatRequest, request: Request):
         user_id=user.id if user else "",
         role=user.role if user else "",
     )
-    reply = await adapter.chat(query=req.query, sid=sid, files=req.files or None)
+    _persist_conversation_model(conv_id, req.model)
+    reply = await adapter.chat(query=req.query, sid=sid, files=req.files or None, model=req.model or None)
     return {"reply": reply, "session_id": sid, "conversation_id": conv_id}
 
 
@@ -201,9 +216,10 @@ async def chat_stream(req: ChatRequest, request: Request):
         user_id=user.id if user else "",
         role=user.role if user else "",
     )
+    _persist_conversation_model(conv_id, req.model)
 
     async def generate():
-        async for event_str in adapter.chat_stream(query=req.query, sid=sid, files=req.files or None):
+        async for event_str in adapter.chat_stream(query=req.query, sid=sid, files=req.files or None, model=req.model or None):
             yield f"data: {event_str}\n\n"
 
     return StreamingResponse(
@@ -249,6 +265,7 @@ async def chat_regenerate(req: RegenerateRequest, request: Request):
 
     db = get_db()
     msgs = db.get_messages(conv_id, limit=5000)
+    _persist_conversation_model(conv_id, req.model)
     if not msgs or req.message_index >= len(msgs):
         raise HTTPException(400, "消息序号无效或会话为空")
     target = msgs[req.message_index]
@@ -281,7 +298,7 @@ async def chat_regenerate(req: RegenerateRequest, request: Request):
     truncate_engine_session(adapter, sid, user_ordinal)
 
     async def generate():
-        async for event_str in adapter.chat_stream(query=new_query, sid=sid, files=None):
+        async for event_str in adapter.chat_stream(query=new_query, sid=sid, files=None, model=req.model or None):
             yield f"data: {event_str}\n\n"
 
     return StreamingResponse(

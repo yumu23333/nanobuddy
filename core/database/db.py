@@ -211,6 +211,12 @@ class Database:
                 "ALTER TABLE conversations ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0"
             )
             conn.commit()
+        # model 列（按会话切换模型）：旧库需补齐
+        if "model" not in cols:
+            conn.execute(
+                "ALTER TABLE conversations ADD COLUMN model TEXT"
+            )
+            conn.commit()
         # documents 表的 mtime 列（用于索引增量跳过），旧库需补齐
         doc_cols = {r[1] for r in conn.execute("PRAGMA table_info(documents)").fetchall()}
         if "mtime" not in doc_cols:
@@ -338,7 +344,7 @@ class Database:
                 (owner_user_id, conv_id),
             )
         conn.commit()
-        return {"id": conv_id, "title": title, "created_at": now, "owner_user_id": owner_user_id}
+        return {"id": conv_id, "title": title, "created_at": now, "owner_user_id": owner_user_id, "model": None}
 
     def ensure_conversation_owned(
         self, conv_id: str, owner_user_id: str, title: str = "新对话"
@@ -371,14 +377,14 @@ class Database:
         conn = self._get_conn()
         if owner_user_id is not None:
             rows = conn.execute(
-                "SELECT id, title, created_at, updated_at, message_count, owner_user_id, pinned "
+                "SELECT id, title, created_at, updated_at, message_count, owner_user_id, pinned, model "
                 "FROM conversations WHERE owner_user_id = ? "
                 "ORDER BY pinned DESC, updated_at DESC LIMIT ?",
                 (owner_user_id, limit),
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT id, title, created_at, updated_at, message_count, owner_user_id, pinned "
+                "SELECT id, title, created_at, updated_at, message_count, owner_user_id, pinned, model "
                 "FROM conversations ORDER BY pinned DESC, updated_at DESC LIMIT ?",
                 (limit,),
             ).fetchall()
@@ -387,7 +393,7 @@ class Database:
     def get_conversation(self, conv_id: str) -> Optional[dict]:
         conn = self._get_conn()
         row = conn.execute(
-            "SELECT id, title, created_at, updated_at, message_count, owner_user_id, pinned "
+            "SELECT id, title, created_at, updated_at, message_count, owner_user_id, pinned, model "
             "FROM conversations WHERE id = ?",
             (conv_id,),
         ).fetchone()
@@ -416,8 +422,8 @@ class Database:
         )
         conn.commit()
 
-    def update_conversation(self, conv_id: str, title: str | None = None, pinned: int | None = None):
-        """更新会话标题与/或置顶状态（pinned: 1 置顶，0 取消）"""
+    def update_conversation(self, conv_id: str, title: str | None = None, pinned: int | None = None, model: str | None = None):
+        """更新会话标题/置顶/模型（pinned: 1 置顶，0 取消；model: 覆盖会话使用的对话模型，空串清空）"""
         conn = self._get_conn()
         sets: list[str] = []
         values: list = []
@@ -427,6 +433,9 @@ class Database:
         if pinned is not None:
             sets.append("pinned = ?")
             values.append(int(pinned))
+        if model is not None:
+            sets.append("model = ?")
+            values.append(model if model else None)
         if not sets:
             return False
         sets.append("updated_at = ?")

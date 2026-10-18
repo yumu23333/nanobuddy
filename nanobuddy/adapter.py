@@ -1200,7 +1200,7 @@ class NanoBuddyAdapter:
         if original.get("prompt_tokens") and original.get("completion_tokens"):
             run_result.usage["source"] = "api"
 
-    async def chat(self, query: str, sid: str = "", files: list[str] | None = None) -> str:
+    async def chat(self, query: str, sid: str = "", files: list[str] | None = None, model: str | None = None) -> str:
         self._ensure_provider_current()
         sk_pre = sid or "cli:default"
         await self._prepare_session_for_chat(sk_pre)
@@ -1212,7 +1212,7 @@ class NanoBuddyAdapter:
         role_hook = RolePermissionHook()
         compliance = ComplianceHook(self.tools, self.project_root, self.config)
         r = await runner.run(AgentRunSpec(
-            initial_messages=msgs, tools=self.lazy_tools, model=self.model,
+            initial_messages=msgs, tools=self.lazy_tools, model=model or self.model,
             max_iterations=self.max_iterations, max_tool_result_chars=self.max_tool_result_chars,
             hook=CompositeHook([role_hook, compliance]),
             tool_timeout_s=agent_cfg.get("tool_timeout", 120),
@@ -1237,7 +1237,7 @@ class NanoBuddyAdapter:
         persist_chat_turn(self.session_manager, sk, query, r, thinking="")
         return reply
 
-    async def chat_stream(self, query: str, sid: str = "", files: list[str] | None = None) -> AsyncGenerator[str, None]:
+    async def chat_stream(self, query: str, sid: str = "", files: list[str] | None = None, model: str | None = None) -> AsyncGenerator[str, None]:
         self._ensure_provider_current()
         sk_pre = sid or "cli:default"
         compact_note = await self._prepare_session_for_chat(sk_pre)
@@ -1263,7 +1263,7 @@ class NanoBuddyAdapter:
             run_result = None
             try:
                 run_result = await AgentRunner(self.provider).run(AgentRunSpec(
-                    initial_messages=msgs, tools=self.lazy_tools, model=self.model,
+                    initial_messages=msgs, tools=self.lazy_tools, model=model or self.model,
                     max_iterations=self.max_iterations, max_tool_result_chars=self.max_tool_result_chars,
                     hook=hook,
                     tool_timeout_s=agent_cfg.get("tool_timeout", 120),

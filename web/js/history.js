@@ -163,6 +163,8 @@ async function loadConv(convId) {
     currentConvId = convId;
     conversationId = convId;
     sessionId = convId;
+    // 回显会话级模型
+    applyConversationModel(data.conversation?.model || '');
 
     el.innerHTML = '';
     const msgs = el;
@@ -220,6 +222,13 @@ function showCtx(e, convId) {
       ${_dualIcon('➕', 'fa-plus')} 添加到分屏
     </div>
     <div class="ctx-divider"></div>
+    <div class="ctx-item" onclick="closeCtx();exportConversation('${convId}','md')">
+      ${_dualIcon('📝', 'fa-file-lines')} 导出 Markdown
+    </div>
+    <div class="ctx-item" onclick="closeCtx();exportConversation('${convId}','pdf')">
+      ${_dualIcon('📄', 'fa-file-pdf')} 导出 PDF（打印）
+    </div>
+    <div class="ctx-divider"></div>
     <div class="ctx-item danger" onclick="closeCtx();delConv('${convId}')">
       ${_dualIcon('🗑️', 'fa-trash-can')} 删除此对话
     </div>
@@ -237,6 +246,97 @@ function showCtx(e, convId) {
 function closeCtx() {
   const menu = HistoryDOM.ctxMenu;
   if (menu) menu.classList.remove('open');
+}
+
+// ---------- 对话导出 ----------
+
+/** 将消息列表转换为 Markdown 文本 */
+function buildConversationMarkdown(title, messages) {
+  const lines = [];
+  lines.push(`# ${title || '对话记录'}`);
+  lines.push('');
+  lines.push(`> 导出时间：${new Date().toLocaleString('zh-CN')}`);
+  lines.push('');
+  (messages || []).forEach(m => {
+    const role = m.role === 'user' ? '用户' : (m.role === 'assistant' ? '助手' : m.role);
+    lines.push(`## ${role}`);
+    lines.push('');
+    lines.push((m.content || '').trim() || '_(空)_');
+    lines.push('');
+  });
+  return lines.join('\n');
+}
+
+function downloadText(filename, text, mime) {
+  const blob = new Blob([text], { type: mime || 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** 导出当前正在查看的会话（快捷入口，默认 Markdown） */
+function exportCurrentConversation() {
+  const convId = (typeof ChatState !== 'undefined' && ChatState.currentConvId) || currentConvId;
+  if (!convId) {
+    toast('请先打开一段对话再导出', 'error');
+    return;
+  }
+  exportConversation(convId, 'md');
+}
+
+/** 导出指定会话：format = 'md' | 'pdf' */
+async function exportConversation(convId, format) {
+  if (!convId) { toast('缺少会话 ID', 'error'); return; }
+  try {
+    const res = await nanobuddyFetch(`/api/conversations/${convId}/export`);
+    if (!res.ok) throw new Error('加载失败');
+    const data = await res.json();
+    const title = data.conversation?.title || '对话记录';
+    const messages = data.messages || [];
+    const md = buildConversationMarkdown(title, messages);
+
+    if (format === 'pdf') {
+      openPrintWindow(title, messages);
+    } else {
+      const safe = (title || 'conversation').replace(/[\\/:*?"<>|]/g, '_').slice(0, 50);
+      downloadText(`${safe}.md`, md, 'text/markdown;charset=utf-8');
+      toast('已导出 Markdown', 'success');
+    }
+  } catch (e) {
+    toast(`导出失败: ${e.message}`, 'error');
+  }
+}
+
+/** 打开打印窗口（浏览器“另存为 PDF”） */
+function openPrintWindow(title, messages) {
+  const w = window.open('', '_blank');
+  if (!w) { toast('浏览器拦截了弹窗，请允许弹窗后重试', 'error'); return; }
+  const body = (messages || []).map(m => {
+    const role = m.role === 'user' ? '用户' : (m.role === 'assistant' ? '助手' : m.role);
+    const content = escHtml(m.content || '').replace(/\n/g, '<br>');
+    return `<div class="msg"><div class="role">${role}</div><div class="content">${content}</div></div>`;
+  }).join('');
+  w.document.write(`<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">
+<title>${escHtml(title)}</title>
+<style>
+  body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;max-width:800px;margin:24px auto;padding:0 16px;color:#222;line-height:1.6}
+  h1{font-size:20px;border-bottom:2px solid #4682B4;padding-bottom:8px}
+  .msg{margin:14px 0;padding:10px 14px;border:1px solid #eee;border-radius:8px}
+  .role{font-weight:700;color:#4682B4;margin-bottom:4px;font-size:13px}
+  .content{white-space:pre-wrap;word-break:break-word}
+  @media print{body{margin:0}}
+</style></head><body>
+<h1>${escHtml(title)}</h1>
+<p style="color:#888;font-size:12px">导出时间：${new Date().toLocaleString('zh-CN')}</p>
+${body}
+<script>window.onload=function(){setTimeout(function(){window.print();},300);}<\/script>
+</body></html>`);
+  w.document.close();
 }
 
 function delConv(id) {
@@ -676,4 +776,7 @@ window.deleteAllHistory = deleteAllHistory;
 window.filterHistory = filterHistory;
 window.renameConv = renameConv;
 window.togglePin = togglePin;
+window.exportConversation = exportConversation;
+window.exportCurrentConversation = exportCurrentConversation;
+window.buildConversationMarkdown = buildConversationMarkdown;
 window.HistoryState = HistoryState;

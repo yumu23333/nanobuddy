@@ -1912,6 +1912,202 @@ function renderToolPage(data) {
   if (period) period.textContent = '(近30天)';
 }
 
+// ---- 工具调试面板 ----
+const ToolDebugState = {
+  tools: [],
+  selected: null,
+  logs: [],
+};
+
+function switchToolTab(tab) {
+  document.querySelectorAll('#page-tools .tool-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.ttab === tab);
+  });
+  const stats = document.getElementById('toolStatsSection');
+  const debug = document.getElementById('toolDebugSection');
+  if (stats) stats.style.display = tab === 'stats' ? '' : 'none';
+  if (debug) debug.style.display = tab === 'debug' ? '' : 'none';
+  if (tab === 'debug') loadToolDebug();
+}
+
+async function loadToolDebug(force) {
+  if (!force && ToolDebugState.tools.length) {
+    renderToolDebugList();
+    return;
+  }
+  const list = document.getElementById('tdList');
+  if (list) list.innerHTML = '<div style="padding:20px;color:#999">加载中…</div>';
+  try {
+    const d = await nanobuddyFetch('/api/tools/debug-list').then(r => r.json());
+    ToolDebugState.tools = d.tools || [];
+    renderToolDebugList();
+  } catch {
+    if (list) list.innerHTML = '<div style="padding:20px;color:#999">加载失败</div>';
+  }
+}
+
+function renderToolDebugList() {
+  const list = document.getElementById('tdList');
+  if (!list) return;
+  const kw = (document.getElementById('tdSearch')?.value || '').trim().toLowerCase();
+  const tools = ToolDebugState.tools.filter(t =>
+    !kw || (t.name || '').toLowerCase().includes(kw) || (t.description || '').toLowerCase().includes(kw)
+  );
+  if (!tools.length) {
+    list.innerHTML = '<div style="padding:20px;color:#999">无匹配工具</div>';
+    return;
+  }
+  // 按类别分组
+  const groups = {};
+  tools.forEach(t => {
+    const cat = t.category || 'general';
+    (groups[cat] = groups[cat] || []).push(t);
+  });
+  const order = Object.keys(groups).sort();
+  let html = '';
+  order.forEach(cat => {
+    html += `<div class="td-group-title">${escHtml(cat)} <span class="td-group-count">${groups[cat].length}</span></div>`;
+    groups[cat].forEach(t => {
+      const sel = ToolDebugState.selected === t.name ? ' selected' : '';
+      html += `<div class="td-item${sel}" onclick="openToolDebug('${escHtml(t.name)}')">
+        <div class="td-item-name">${escHtml(t.name)}</div>
+        <div class="td-item-desc">${escHtml((t.description || '').slice(0, 60))}</div>
+      </div>`;
+    });
+  });
+  list.innerHTML = html;
+}
+
+function openToolDebug(name) {
+  const tool = ToolDebugState.tools.find(t => t.name === name);
+  const detail = document.getElementById('tdDetail');
+  if (!tool || !detail) return;
+  ToolDebugState.selected = name;
+  renderToolDebugList();
+
+  const params = tool.parameters || {};
+  const paramKeys = Object.keys(params);
+  let formHtml = '';
+  if (!paramKeys.length) {
+    formHtml = '<div class="td-no-param">该工具无需参数</div>';
+  } else {
+    formHtml = paramKeys.map(k => {
+      const meta = params[k] || {};
+      const type = (meta.type || 'string').toLowerCase();
+      const inputType = type === 'integer' || type === 'number' ? 'number' : 'text';
+      return `<div class="td-field">
+        <label>${escHtml(k)} <span class="td-field-type">${escHtml(type)}</span></label>
+        <input class="td-input" data-param="${escHtml(k)}" type="${inputType}" placeholder="${escHtml(meta.description || '')}">
+        <div class="td-field-desc">${escHtml(meta.description || '')}</div>
+      </div>`;
+    }).join('');
+  }
+
+  detail.innerHTML = `
+    <div class="td-detail-head">
+      <div class="td-detail-name">${escHtml(tool.name)}</div>
+      <span class="td-badge">${escHtml(tool.category || 'general')}</span>
+    </div>
+    <div class="td-detail-desc">${escHtml(tool.description || '')}</div>
+    <div class="td-form">${formHtml}</div>
+    <div class="td-actions">
+      <button class="btn btn-primary btn-sm" onclick="runToolDebug()">
+        <i class="icon-fa fa-solid fa-play"></i> 运行
+      </button>
+      <span class="td-run-status" id="tdRunStatus"></span>
+    </div>
+    <div class="td-result" id="tdResult" style="display:none"></div>
+    <div class="td-log-title">调用日志</div>
+    <div class="td-log" id="tdLog"></div>
+  `;
+  renderToolDebugLog();
+}
+
+function getToolDebugArgs() {
+  const detail = document.getElementById('tdDetail');
+  if (!detail) return {};
+  const args = {};
+  detail.querySelectorAll('.td-input').forEach(inp => {
+    const k = inp.dataset.param;
+    const v = inp.value.trim();
+    if (v === '') return;
+    const isNum = inp.type === 'number';
+    args[k] = isNum ? Number(v) : v;
+  });
+  return args;
+}
+
+async function runToolDebug() {
+  const name = ToolDebugState.selected;
+  if (!name) return;
+  const status = document.getElementById('tdRunStatus');
+  const resultBox = document.getElementById('tdResult');
+  const btn = document.querySelector('#tdDetail .btn-primary');
+  if (status) status.textContent = '运行中…';
+  if (btn) btn.disabled = true;
+  const args = getToolDebugArgs();
+  const start = Date.now();
+  try {
+    const res = await nanobuddyFetch('/api/tools/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, arguments: args }),
+    });
+    const d = await res.json();
+    const dur = d.duration_ms != null ? d.duration_ms : (Date.now() - start);
+    if (res.ok && d.status === 'ok') {
+      const ok = d.ok;
+      if (status) status.textContent = `${ok ? '成功' : '返回异常'} · ${dur}ms`;
+      if (status) status.style.color = ok ? 'var(--success)' : 'var(--danger)';
+      if (resultBox) {
+        resultBox.style.display = '';
+        resultBox.innerHTML = `<div class="td-result-head">结果${ok ? '' : '（工具返回了错误文本）'}</div>
+          <pre class="td-result-body">${escHtml(String(d.result || ''))}</pre>
+          <button class="btn btn-sm btn-outline" onclick="copyText(this.previousElementSibling?.textContent||'')">复制结果</button>`;
+      }
+      ToolDebugState.logs.unshift({ name, args, ok, dur, result: String(d.result || ''), time: new Date().toLocaleString('zh-CN') });
+    } else {
+      const msg = d.detail || d.message || ('HTTP ' + res.status);
+      if (status) { status.textContent = '失败 · ' + dur + 'ms'; status.style.color = 'var(--danger)'; }
+      if (resultBox) { resultBox.style.display = ''; resultBox.innerHTML = `<div class="td-result-head" style="color:var(--danger)">请求失败</div><pre class="td-result-body">${escHtml(String(msg))}</pre>`; }
+      ToolDebugState.logs.unshift({ name, args, ok: false, dur, result: String(msg), time: new Date().toLocaleString('zh-CN') });
+    }
+  } catch (e) {
+    if (status) { status.textContent = '网络错误'; status.style.color = 'var(--danger)'; }
+    if (resultBox) { resultBox.style.display = ''; resultBox.innerHTML = `<pre class="td-result-body">${escHtml(e.message)}</pre>`; }
+  } finally {
+    if (btn) btn.disabled = false;
+    renderToolDebugLog();
+  }
+}
+
+function renderToolDebugLog() {
+  const log = document.getElementById('tdLog');
+  if (!log) return;
+  if (!ToolDebugState.logs.length) {
+    log.innerHTML = '<div style="color:#999;font-size:12px">暂无调用记录</div>';
+    return;
+  }
+  log.innerHTML = ToolDebugState.logs.slice(0, 20).map(l => `
+    <div class="td-log-item ${l.ok ? 'ok' : 'fail'}">
+      <div class="td-log-head"><b>${escHtml(l.name)}</b> <span class="td-log-badge">${l.ok ? 'OK' : 'ERR'}</span> <span class="td-log-dur">${l.dur}ms</span> <span class="td-log-time">${escHtml(l.time)}</span></div>
+      <div class="td-log-args">参数：${escHtml(JSON.stringify(l.args))}</div>
+    </div>`).join('');
+}
+
+function filterToolDebug() {
+  renderToolDebugList();
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('已复制', 'success');
+  } catch {
+    toast('复制失败', 'error');
+  }
+}
+
 // ---- 统计渲染 ----
 function renderAllStats() {
   if (!StatsState.data) return;
@@ -2234,3 +2430,11 @@ window.sortStatsTable = sortStatsTable;
 window.toggleLegend = toggleLegend;
 window.formatNumber = formatNumber;
 window.formatNumberFull = formatNumberFull;
+
+// 工具调试面板
+window.switchToolTab = switchToolTab;
+window.loadToolDebug = loadToolDebug;
+window.openToolDebug = openToolDebug;
+window.runToolDebug = runToolDebug;
+window.filterToolDebug = filterToolDebug;
+window.copyText = copyText;

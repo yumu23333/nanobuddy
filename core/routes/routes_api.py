@@ -7,7 +7,7 @@ import datetime
 import time
 import uuid
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Query, HTTPException, UploadFile, File, Depends, Request
 
@@ -730,14 +730,15 @@ def delete_conversation(conv_id: str, user: CurrentUser = Depends(get_current_us
 class ConversationUpdate(BaseModel):
     title: str | None = None
     pinned: int | None = None
+    model: str | None = None
 
 
 @router.put("/conversations/{conv_id}")
 def update_conversation(conv_id: str, body: ConversationUpdate, user: CurrentUser = Depends(get_current_user)):
-    """更新会话：重命名(title) 与/或 置顶(pinned: 1/0)"""
+    """更新会话：重命名(title) / 置顶(pinned: 1/0) / 模型(model，空串清空)"""
     _assert_conv_access(conv_id, user)
-    if body.title is None and body.pinned is None:
-        raise HTTPException(400, "至少需要提供 title 或 pinned 之一")
+    if body.title is None and body.pinned is None and body.model is None:
+        raise HTTPException(400, "至少需要提供 title / pinned / model 之一")
     if body.title is not None and not body.title.strip():
         raise HTTPException(400, "标题不能为空")
     db = get_db()
@@ -745,8 +746,74 @@ def update_conversation(conv_id: str, body: ConversationUpdate, user: CurrentUse
         conv_id,
         title=body.title.strip() if body.title is not None else None,
         pinned=body.pinned,
+        model=body.model if body.model is not None else None,
     )
     return {"status": "ok", "message": "对话已更新"}
+
+
+@router.get("/conversations/{conv_id}/export")
+def export_conversation(conv_id: str, user: CurrentUser = Depends(get_current_user)):
+    """导出对话全量消息（高上限，避免长对话被截断），用于 Markdown / PDF 导出"""
+    _assert_conv_access(conv_id, user)
+    db = get_db()
+    conv = db.get_conversation(conv_id)
+    if conv:
+        messages = db.get_messages(conv_id, limit=100000)
+        return {"conversation": conv, "messages": messages}
+    raise HTTPException(404, "对话不存在")
+
+
+class ToolRunRequest(BaseModel):
+    name: str
+    arguments: dict[str, Any] = {}
+
+
+@router.get("/tools/debug-list")
+def list_debug_tools():
+    """工具调试面板专用工具列表：取自 registry_tools（扁平 parameters 格式，与 /tools/run 同源）。"""
+    from core.tools.registry_tools import list_tools
+    return {"tools": list_tools()}
+
+
+@router.post("/tools/run")
+def run_tool_endpoint(body: ToolRunRequest, user: CurrentUser = Depends(get_current_user)):
+    """工具调试面板：直接执行单个工具并返回结果 + 耗时。仅限管理员使用，避免被滥用。"""
+    if user.role != "admin":
+        raise HTTPException(403, "工具调试需要管理员权限")
+    from core.tools.registry_tools import get_tool
+
+    meta = get_tool(body.name)
+    if meta is None:
+        raise HTTPException(404, f"工具「{body.name}」不存在")
+    import concurrent.futures
+    import time as _time
+
+    func = meta["func"]
+    timeout = meta.get("timeout", 30)
+    args = body.arguments or {}
+
+    start = _time.time()
+    result_str: str
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            fut = ex.submit(func, **args)
+            result_str = str(fut.result(timeout=timeout))
+    except concurrent.futures.TimeoutExpired:
+        result_str = f"错误：工具执行超时（{timeout}秒）"
+    except TypeError as e:
+        result_str = f"错误：参数不匹配 - {e}"
+    except Exception as e:  # 工具自身异常，作为结果返回而非 500
+        result_str = f"错误：执行异常 - {e}"
+    duration_ms = int((_time.time() - start) * 1000)
+    ok = not result_str.startswith("错误")
+    return {
+        "status": "ok",
+        "name": body.name,
+        "arguments": args,
+        "result": result_str,
+        "duration_ms": duration_ms,
+        "ok": ok,
+    }
 
 
 # ──────────── 设置接口 ────────────

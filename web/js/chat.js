@@ -97,6 +97,68 @@ function setSessionId(id) {
   ChatState.conversationId = id;
 }
 
+/** 获取当前选择的会话级模型（空串=使用全局默认） */
+function getChatModel() {
+  const sel = document.getElementById('chatModelSelect');
+  if (!sel) return '';
+  const v = sel.value;
+  return v && v !== '__custom__' ? v : '';
+}
+
+/** 切换会话模型：选自定义则 prompt 录入；并落库到当前会话 */
+async function onChatModelChange() {
+  const sel = document.getElementById('chatModelSelect');
+  if (!sel) return;
+  if (sel.value === '__custom__') {
+    const name = prompt('输入自定义模型名称（如 gpt-4o-custom）：');
+    if (!name || !name.trim()) {
+      // 还原为默认
+      sel.value = '';
+      return;
+    }
+    const customVal = name.trim();
+    // 动态插入自定义选项并选中
+    let opt = sel.querySelector('option[data-custom="1"]');
+    if (!opt) {
+      opt = document.createElement('option');
+      opt.setAttribute('data-custom', '1');
+      sel.insertBefore(opt, sel.querySelector('option[value="__custom__"]'));
+    }
+    opt.value = customVal;
+    opt.textContent = '自定义：' + customVal;
+    sel.value = customVal;
+  }
+  // 落库到当前会话
+  const convId = ChatState.currentConvId;
+  if (!convId) return;
+  try {
+    await nanobuddyFetch(`/api/conversations/${convId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: getChatModel() }),
+    });
+  } catch {
+    toast('保存会话模型失败', 'error');
+  }
+}
+
+/** 根据会话记录回显模型下拉（loadConv 调用） */
+function applyConversationModel(model) {
+  const sel = document.getElementById('chatModelSelect');
+  if (!sel) return;
+  if (!model) { sel.value = ''; return; }
+  // 若选项中已存在该模型则直接选中；否则作为自定义项插入
+  let opt = Array.from(sel.options).find(o => o.value === model);
+  if (!opt) {
+    opt = document.createElement('option');
+    opt.setAttribute('data-custom', '1');
+    opt.value = model;
+    opt.textContent = '自定义：' + model;
+    sel.insertBefore(opt, sel.querySelector('option[value="__custom__"]'));
+  }
+  sel.value = model;
+}
+
 /** 检查是否显示思考过程 */
 function isShowThinking() {
   const checkbox = document.getElementById('setShowThinking');
@@ -738,6 +800,7 @@ async function sendChat() {
         session_id: ChatState.sessionId,
         conversation_id: ChatState.currentConvId,
         files,
+        model: getChatModel(),
       }),
     });
 
@@ -838,7 +901,7 @@ async function runRegenerate(payload) {
     const res = await nanobuddyFetch('/chat/regenerate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ ...payload, model: getChatModel() }),
     });
     if (!res.ok) {
       const t = await res.text().catch(() => '');
@@ -1423,6 +1486,7 @@ async function compactChatHistory() {
 function newChat() {
   setSessionId('');
   document.getElementById('convTitle').textContent = '新对话';
+  applyConversationModel('');
   document.getElementById('chatMessages').innerHTML = `
     <div class="empty-state">
       <div class="big-icon">${_dualIcon('👋', 'fa-hand-wave')}</div>
@@ -1933,3 +1997,6 @@ window.showCommandResult = showCommandResult;
 // 暴露状态供其他模块使用
 window.ChatState = ChatState;
 window.getSessionId = getSessionId;
+window.getChatModel = getChatModel;
+window.onChatModelChange = onChatModelChange;
+window.applyConversationModel = applyConversationModel;
